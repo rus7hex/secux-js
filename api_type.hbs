@@ -1,0 +1,25 @@
+## Types
+
+{{#globals kind="typedef"}}
+{{>header~}}
+{{#if description}}*{{{inlineLinks description}}}*{{/if}}
+
+{{#if properties}}
+{{#if (optionEquals "property-list-format" "list")}}
+{{#each properties~}}
+{{#if (regexp-test name "\w+\.\w+")}}  {{/if}}- {{{name}}} {{>linked-type-list types=type.names delimiter=" \| " ~}}{{#if description}} - {{{inlineLinks description}}}{{/if}}  
+{{/each}}
+{{/if~}}
+{{#if (optionEquals "property-list-format" "table")~}}
+{{tableHead properties "name|Name" "type|Type" "defaultvalue|Default" "description|Description" ~}}
+{{#tableRow properties "name" "type" "defaultvalue" "description" ~}}
+| {{#if @col1}}{{>param-table-name}} | {{/if~}}
+{{#if @col2}}{{>linked-type-list types=type.names delimiter=" \| " }} | {{/if~}}
+{{#if @col3}}{{>defaultvalue}} | {{/if~}}
+{{#if @col4}}{{{stripNewlines (inlineLinks description)}}} |{{/if}}
+{{/tableRow}}
+{{/if~}}
+{{/if~}}
+<br/>
+
+{{/globals}}

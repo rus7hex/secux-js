@@ -1,0 +1,246 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/app-eth)](https://www.npmjs.com/package/@secux/app-eth)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/app-eth)](https://www.npmjs.org/package/@secux/app-eth)
+
+# `@secux/app-eth`
+
+> SecuX Hardware Wallet ETH API
+
+## Usage
+
+```ts
+import { SecuxETH } from "@secux/app-eth";
+```
+
+First, create instance of ITransport.
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br/>
+
+## Examples
+1. Get address derived by given BIP44 path.
+```ts
+const address = await device.getAddress("m/44'/60'/0'/0/0");
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const buffer = SecuxETH.prepareAddress("m/44'/60'/0'/0/0");
+const response = await device.Exchange(buffer);
+const address = SecuxETH.resolveAddress(response);
+
+*/
+```
+
+2. Sign legacy transaction (EIP-155).
+```ts
+const { raw_tx, signature } = await device.sign(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0xD080156885651fADbD6df14145051b934660a748",
+        value: 1e10,
+        chainId: 1,
+        gasPrice: 1e6,
+        gasLimit: 25000
+    }
+)
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const { commandData, rawTx } = SecuxETH.prepareSignEIP155(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0xD080156885651fADbD6df14145051b934660a748",
+        value: 1e10,
+        chainId: 1,
+        gasPrice: 1e6,
+        gasLimit: 25000
+    }
+);
+const response = await device.Exchange(commandData);
+const rawTx = SecuxETH.resolveTransaction(response, rawTx);
+
+*/
+```
+
+3. Sign EIP-1559 transaction.
+```ts
+const { raw_tx, signature } = await device.sign(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0xD080156885651fADbD6df14145051b934660a748",
+        value: 1e10,
+        chainId: 1,
+        maxPriorityFeePerGas: 1e4,
+        maxFeePerGas: 1e6,
+        gasLimit: 25000
+    }
+);
+```
+
+4. Sign transaction with Smart Contract (ERC-20).
+```ts
+const { raw_tx, signature } = await device.sign(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+        value: 0,
+        data: "0xa9059cbb000000000000000000000000d080156885651fadbd6df14145051b934660a7410000000000000000000000000000000000000000000000000000000000989680",
+        chainId: 1,
+        gasPrice: 1e6,
+        gasLimit: 25000
+    }
+);
+
+/*
+
+// alternative usage
+const { commandData, rawTx } = SecuxETH.ERC20.prepareTransfer(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
+        value: 0,
+        chainId: 1,
+        gasPrice: 1e6,
+        gasLimit: 25000
+    },
+    {
+        toAddress: "0xD080156885651fADbD6df14145051b934660a748",
+        amount: `0x${1e18.toString(16)}`
+    }
+);
+const response = await device.Exchange(commandData);
+const rawTx = SecuxETH.resolve(response, rawTx);
+
+*/
+```
+
+4. Sign Message transaction.
+```ts
+const { signature } = await device.sign("m/44'/60'/0'/0/0", msg);
+
+// given chainId, return EIP-155 applied signature
+// const { signature } = await device.sign("m/44'/60'/0'/0/0", msg, 1);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const buffer = SecuxETH.prepareSignMessage("m/44'/60'/0'/0/0", msg);
+const response = await device.Exchange(buffer);
+const signature = SecuxETH.resolveSignatureEIP155(response);
+
+*/
+```
+
+5. Sign TypeData transaction (EIP-712).
+```ts
+const { signature } = await device.sign("m/44'/60'/0'/0/0", JSON.stringify(typedData));
+
+// given chainId, return EIP-155 applied signature
+// const { signature } = await device.sign("m/44'/60'/0'/0/0", JSON.stringify(typedData), 1);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const buffer = SecuxETH.prepareSignTypedData("m/44'/60'/0'/0/0", msg);
+const response = await device.Exchange(buffer);
+// given chainId, return EIP-155 applied signature
+const signature = SecuxETH.resolveSignatureEIP155(response, 1);
+
+*/
+```
+
+6. Sign transaction with WalletConnect.
+```ts
+const { raw_tx, signature } = await device.sign(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0xD080156885651fADbD6df14145051b934660a748",
+        value: 0,
+        data: "0x7ff36ab5000000000000000000000000000000000000000000000000302bf3f82d406d120000000000000000000000000000000000000000000000000000000000000080000000000000000000000000d080156885651fadbd6df14145051b934660a7480000000000000000000000000000000000000000000000000000000060b613630000000000000000000000000000000000000000000000000000000000000003000000000000000000000000bb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c0000000000000000000000007130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c000000000000000000000000e9e7cea3dedca5984780bafc599bd69add087d56",
+        chainId: 56,
+        gasPrice: 1e6,
+        gasLimit: 25000
+    },
+    true
+);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const { commandData, rawTx } = SecuxETH.prepareSignWalletConnectTransaction(
+    "m/44'/60'/0'/0/0",
+    {
+        nonce: 0,
+        to: "0xD080156885651fADbD6df14145051b934660a748",
+        value: 0,
+        data: "0x7ff36ab5000000000000000000000000000000000000000000000000302bf3f82d406d120000000000000000000000000000000000000000000000000000000000000080000000000000000000000000d080156885651fadbd6df14145051b934660a7480000000000000000000000000000000000000000000000000000000060b613630000000000000000000000000000000000000000000000000000000000000003000000000000000000000000bb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c0000000000000000000000007130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c000000000000000000000000e9e7cea3dedca5984780bafc599bd69add087d56",
+        chainId: 56,
+        gasPrice: 1e6,
+        gasLimit: 25000
+    }
+);
+const response = await device.Exchange(commandData);
+const rawTx = SecuxETH.resolveTransaction(response, rawTx);
+
+*/
+```
+
+<br />
+
+## Note
+1. Value of chainId (same as EIP-155):
+   - Ethereum Mainnet: 1
+   - Binance Smart Chain Mainnet: 56
+   - Polygon Network: 137
+   - goto https://chainlist.org/ for your specific chain.
+
+<br />
+
+# API Reference
+{{#class name="SecuxETH"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxETH ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-21 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

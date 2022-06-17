@@ -1,0 +1,36 @@
+require("@secux/utility/lib/logger");
+const { SecuxWebBLE } = require("@secux/transport-webble");
+
+
+let webble;
+document.getElementById("connect").addEventListener("click",
+    async () => {
+        webble = await SecuxWebBLE.Create(
+            () => console.log('connected'),
+            () => console.log('disconnected'),
+            ["crypto", "nifty"]
+        );
+        await webble.Connect();
+
+        if (webble.DeviceType === "crypto") {
+            const otp = prompt('enter otp');
+            await webble.SendOTP(otp);
+        }
+
+        console.log(webble.DeviceName);
+
+        mocha.run();
+    }
+);
+
+export function RunTest(testname, test) {
+    describe(testname, () => {
+        after(async () => {
+            await webble.Disconnect();
+        });
+
+        test(GetDevice);
+    });
+}
+
+export const GetDevice = () => webble;

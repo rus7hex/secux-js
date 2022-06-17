@@ -1,0 +1,40 @@
+{
+  "name": "@secux/transport-reactnative",
+  "version": "3.2.0",
+  "description": "SecuX Hardware Wallet react native API for communication layer",
+  "keywords": [
+    "secux",
+    "react-native",
+    "transport"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-reactnative",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/transport-reactnative.js",
+  "types": "lib/transport-reactnative.d.ts",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "test": "mocha --exit __tests__/*.test.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/transport": "^3.3.0",
+    "buffer": "^6.0.3",
+    "process": "^0.11.10"
+  },
+  "peerDependencies": {
+    "react-native-ble-plx": "^2.0.2",
+    "react-native-settings": "^0.2.3"
+  }
+}

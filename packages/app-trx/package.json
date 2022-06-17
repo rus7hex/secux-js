@@ -1,0 +1,53 @@
+{
+  "name": "@secux/app-trx",
+  "version": "3.0.6",
+  "description": "SecuX Hardware Wallet TRX API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "trx",
+    "tron"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-trx",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-trx.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-trx.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-trx.ts ./lib/app-trx.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@ethersproject/keccak256": "^5.4.0",
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.6",
+    "@tronscan/client": "^0.2.77",
+    "base-x": "^3.0.8",
+    "secp256k1": "^4.0.2"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/keccak": "^3.0.1",
+    "tronweb": "^4.0.0"
+  }
+}

@@ -1,0 +1,100 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/app-bnb)](https://www.npmjs.com/package/@secux/app-bnb)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/app-bnb)](https://www.npmjs.org/package/@secux/app-bnb)
+
+# `@secux/app-bnb`
+
+> SecuX Hardware Wallet BNB API
+
+## Usage
+
+```ts
+import { SecuxBNB } from "@secux/app-bnb";
+```
+
+First, create instance of ITransport
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br />
+
+## Examples
+1. Get address of bip44 path
+```ts
+const path = "m/44'/714'/0'/0/0";
+const address = await device.getAddress(path);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer
+const data = SecuxBNB.prepareAddress(path);
+const response = await device.Exchange(data);
+const address = SecuxBNB.resolveAddress(response);
+
+*/
+```
+
+2. Sign transaction
+```ts
+const { raw_tx, signature } = await deivce.sign(
+    "m/44'/714'/0'/0/0",
+    {
+        to: "bnb17jr3n9xaxm92fp5dznuazql2c2x6ypw2gvuvmy",
+        amount: 1e18
+    }
+);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer
+const data = SecuxBNB.prepareSign(
+    "m/44'/714'/0'/0/0",
+    {
+        from: "bnb1rcxjc3a6va0ldwzerx2t58g3sz6ss6x7cglwyc",
+        to: "bnb17jr3n9xaxm92fp5dznuazql2c2x6ypw2gvuvmy",
+        amount: 1e18
+    }
+);
+
+*/
+```
+
+# API Reference
+{{#class name="SecuxBNB"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxBNB ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-21 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

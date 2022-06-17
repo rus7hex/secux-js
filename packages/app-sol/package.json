@@ -1,0 +1,52 @@
+{
+  "name": "@secux/app-sol",
+  "version": "3.0.0",
+  "description": "SecuX Hardware Wallet SOL API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "sol",
+    "solana"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-sol",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-sol.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-sol.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-sol.ts ./lib/app-sol.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.6",
+    "@solana/buffer-layout": "^4.0.0",
+    "hash.js": "^1.1.7",
+    "tweetnacl": "^1.0.3"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "@solana/spl-token": "^0.2.0",
+    "@solana/web3.js": "^1.34.0"
+  }
+}

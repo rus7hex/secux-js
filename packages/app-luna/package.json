@@ -1,0 +1,50 @@
+{
+  "name": "@secux/app-luna",
+  "version": "3.0.0",
+  "description": "SecuX Hardware Wallet LUNA API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "luna",
+    "terra"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-luna",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-luna.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-luna.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-luna.ts ./lib/app-luna.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js"
+  },
+  "dependencies": {
+    "@secux/protocol-transaction": "^3.1.0",
+    "@secux/utility": "^3.0.7",
+    "@terra-money/terra.proto": "^0.1.7",
+    "bech32": "^2.0.0",
+    "hash.js": "^1.1.7",
+    "secp256k1": "^4.0.3"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "@terra-money/terra.js": "^3.0.11"
+  }
+}

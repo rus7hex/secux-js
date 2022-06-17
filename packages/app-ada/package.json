@@ -1,0 +1,46 @@
+{
+  "name": "@secux/app-ada",
+  "version": "3.0.4",
+  "description": "SecuX Hardware Wallet ADA API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "ada",
+    "cardano"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-ada",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-ada.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-ada.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-ada.ts ./lib/app-ada.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js"
+  },
+  "dependencies": {
+    "@emurgo/cardano-serialization-lib-asmjs": "^9.1.4",
+    "@secux/protocol-transaction": "^3.1.0",
+    "@secux/utility": "^3.0.6",
+    "cardano-crypto.js": "^6.1.0",
+    "pbkdf2": "^3.1.2"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  }
+}

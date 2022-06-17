@@ -1,0 +1,53 @@
+{
+  "name": "@secux/app-bnb",
+  "version": "3.0.3",
+  "description": "SecuX Hardware Wallet BNB API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "bnb",
+    "binance"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-bnb",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-bnb.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-bnb.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-bnb.ts ./lib/app-bnb.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@binance-chain/javascript-sdk": "4.2.0",
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.6",
+    "secp256k1": "^4.0.2"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "bignumber.js": "^9.0.1",
+    "bip32": "^2.0.6",
+    "bip39": "^3.0.4",
+    "raw-transaction-hex-decoder": "^1.3.1"
+  }
+}

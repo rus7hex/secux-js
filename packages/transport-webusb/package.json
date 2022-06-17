@@ -1,0 +1,38 @@
+{
+  "name": "@secux/transport-webusb",
+  "version": "3.1.4",
+  "description": "SecuX Hardware Wallet webUSB/USB API for communication layer",
+  "keywords": [
+    "secux",
+    "usb",
+    "webusb",
+    "transport"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-webusb",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/transport-webusb.js",
+  "types": "lib/transport-webusb.d.ts",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "test": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/transport-webusb.test.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/transport": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/w3c-web-usb": "^1.0.5"
+  }
+}

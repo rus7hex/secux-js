@@ -1,0 +1,59 @@
+{
+  "main": "index.js",
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "web": "expo start --web",
+    "start": "react-native start"
+  },
+  "workspaces": [
+    "src",
+    "__tests__"
+  ],
+  "dependencies": {
+    "@secux/app-bnb": "file:../packages/app-bnb",
+    "@secux/app-btc": "file:../packages/app-btc",
+    "@secux/app-eth": "file:../packages/app-eth",
+    "@secux/app-trx": "file:../packages/app-trx",
+    "@secux/app-xlm": "file:../packages/app-xlm",
+    "@secux/app-xrp": "file:../packages/app-xrp",
+    "@secux/transport-reactnative": "file:../packages/transport-reactnative",
+    "@tradle/react-native-http": "^2.0.1",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "chai": "^4.3.4",
+    "expo": "~42.0.1",
+    "expo-splash-screen": "~0.11.2",
+    "expo-status-bar": "~1.0.4",
+    "expo-updates": "~0.8.1",
+    "https-browserify": "^1.0.0",
+    "mocha": "^9.1.1",
+    "path-browserify": "^1.0.1",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-native": "~0.63.4",
+    "react-native-ble-plx": "^2.0.2",
+    "react-native-crypto": "^2.2.0",
+    "react-native-dialog": "^9.1.0",
+    "react-native-fs": "^2.18.0",
+    "react-native-gesture-handler": "~1.10.2",
+    "react-native-logs": "^3.0.4",
+    "react-native-os": "^1.2.6",
+    "react-native-path": "^0.0.5",
+    "react-native-randombytes": "^3.6.1",
+    "react-native-reanimated": "~2.2.0",
+    "react-native-screens": "~3.4.0",
+    "react-native-settings": "^0.2.3",
+    "react-native-unimodules": "~0.14.5",
+    "react-native-web": "~0.13.12",
+    "react-native-windows": "~0.63.41",
+    "stream-browserify": "^3.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.9.0",
+    "@babel/runtime": "^7.15.4",
+    "@types/mocha": "^9.0.0",
+    "babel-plugin-module-resolver": "^4.1.0"
+  },
+  "private": true
+}

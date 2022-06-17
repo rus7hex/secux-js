@@ -1,0 +1,122 @@
+/*!
+Copyright 2022 SecuX Technology Inc
+Copyright Chen Wei-En
+Copyright Wu Tsung-Yu
+
+Licensed under the Apache License, Version 2.0 (the License);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an AS IS BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+
+import ow from "ow";
+import { ow_checkBufferLength, owTool } from "@secux/utility";
+import { StakeInstruction, SystemInstruction, TokenInstruction } from "./instruction";
+
+
+export const ow_address = owTool.base58String.minLength(43).maxLength(44);
+export const ow_programid = ow.any(ow_address, ow.string.oneOf([
+    "11111111111111111111111111111111"
+]));
+export const ow_publickey = ow.any(owTool.hexString.length(64), ow_checkBufferLength(32));
+export const ow_path = ow.string.matches(/^m\/44'\/501'(\/\d+'){1,2}$/);
+
+export type Base58String = string;
+export type HexString = string;
+
+export type ATAOption = {
+    mintAccount: Base58String
+};
+
+export const ow_ATAOption = ow.object.exactShape({
+    mintAccount: ow_address
+});
+
+export type SeedOption = {
+    seed: string,
+    programId: Base58String
+}
+
+export const ow_SeedOption = ow.object.exactShape({
+    seed: ow.string.nonEmpty,
+    programId: ow_programid
+});
+
+export type Instruction = {
+    programId: Base58String,
+    accounts: Array<{ publickey: string | Buffer, isSigner: boolean, isWritable: boolean }>,
+    data: HexString | Buffer
+};
+
+export const ow_instruction = ow.object.partialShape({
+    programId: ow_programid,
+    accounts: ow.array.ofType(ow.object.partialShape({
+        publickey: ow_publickey,
+        isSigner: ow.boolean,
+        isWritable: ow.boolean
+    })),
+    data: ow.any(owTool.hexString, ow.buffer)
+});
+
+export enum InstructionType {
+    CreateAccount = "createAccount",
+    Transfer = "transfer",
+    CreateAccountWithSeed = "createAccountWithSeed",
+
+    CreateAssociatedAccount = "createAssociatedTokenAccount",
+    TransferToken = "tokenTransfer",
+    TransferTokenChecked = "tokenTransferChecked",
+    CloseAccount = "closeAccount",
+
+    InitializeStake = "initializeStake",
+    Delegate = "delegate",
+    Withdraw = "withdraw",
+    Deactivate = "deactivate"
+}
+
+export type BuiltinInstruction = {
+    type: InstructionType,
+    params: any
+}
+
+export const ow_builtinInstruction = ow.object.partialShape({
+    type: ow.string.oneOf(Object.values(InstructionType)),
+});
+
+export type txDetail = {
+    recentBlockhash: Base58String,
+    instructions: Array<Instruction | BuiltinInstruction>,
+    ownerships: Array<{ path: string, account: Base58String }>,
+}
+
+export const ow_txDetail = ow.object.partialShape({
+    recentBlockhash: ow_address,
+    instructions: ow.array.ofType(ow.any(ow_instruction, ow_builtinInstruction)).nonEmpty,
+    ownerships: ow.array.ofType(ow.object.partialShape({
+        path: ow_path,
+        account: ow_address
+    })).nonEmpty
+});
+
+export const InstructionMap: { [type: string]: Function } = {}
+InstructionMap[InstructionType.CreateAccount] = SystemInstruction.createAccount;
+InstructionMap[InstructionType.Transfer] = SystemInstruction.transfer;
+InstructionMap[InstructionType.CreateAssociatedAccount] = TokenInstruction.createAssociatedTokenAccount;
+InstructionMap[InstructionType.TransferToken] = TokenInstruction.transfer;
+InstructionMap[InstructionType.TransferTokenChecked] = TokenInstruction.transferChecked;
+InstructionMap[InstructionType.CloseAccount] = TokenInstruction.closeAccount;
+InstructionMap[InstructionType.CreateAccountWithSeed] = SystemInstruction.createAccountWithSeed;
+InstructionMap[InstructionType.InitializeStake] = StakeInstruction.initialize;
+InstructionMap[InstructionType.Delegate] = StakeInstruction.delegate;
+InstructionMap[InstructionType.Withdraw] = StakeInstruction.withdraw;
+InstructionMap[InstructionType.Deactivate] = StakeInstruction.deactivate;
+
+Object.freeze(InstructionMap);

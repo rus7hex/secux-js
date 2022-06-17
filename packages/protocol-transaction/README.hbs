@@ -1,0 +1,78 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/protocol-transaction)](https://www.npmjs.com/package/@secux/protocol-transaction)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/protocol-transaction)](https://www.npmjs.org/package/@secux/protocol-transaction)
+
+# `@secux/protocol-transaction`
+
+> SecuX Hardware Wallet transcation related protocol API
+
+## Usage
+
+```ts
+import { EllipticCurve, SecuxTransactionTool } from "@secux/protocol-transaction";
+```
+
+First, create instance of ITransport
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br/>
+
+## Examples
+1. Query publickey from SecuX Hardware Wallet
+```ts
+const data = SecuxTransactionTool.getPublickey("m/44'/0'/0'/0/0", EllipticCurve.SECP256K1);
+const response = await device.Exchange(data);
+const publickey = SecuxTransactionTool.resolvePublickey(
+    response, 
+    EllipticCurve.SECP256K1,
+    true // SECP256K1 compress flag
+);
+```
+
+2. Query extended publickey from SecuX Hardware Wallet
+```ts
+const data = SecuxTransactionTool.getXPublickey("m/44'/0'/0'/0/0");
+const response = await device.Exchange(data);
+const xpub = SecuxTransactionTool.resolveXPublickey(response, "m/44'/0'/0'/0/0");
+```
+
+# API Reference
+{{#class name="SecuxTransactionTool"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxTransactionTool ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-21 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

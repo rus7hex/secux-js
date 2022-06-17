@@ -1,0 +1,97 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/app-xlm)](https://www.npmjs.com/package/@secux/app-xlm)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/app-xlm)](https://www.npmjs.org/package/@secux/app-xlm)
+
+# `@secux/app-xlm`
+
+> SecuX Hardware Wallet XLM API
+
+## Usage
+
+```ts
+import { SecuxXLM } from "@secux/app-xlm";
+```
+
+First, create instance of ITransport
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br/>
+
+## Examples
+1. Get address of bip44 path
+```ts
+const address = await device.getAddress("m/44'/148'/0'");
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const data = SecuxXLM.prepareAddress("m/44'/148'/0'");
+const response = await device.Exchange(data);
+const address = SecuxXLM.resolve(response);
+
+*/
+```
+
+2. Sign transaction
+```ts
+const content = {
+    to: "GDATJJ7NZIQ5GR4JBZVUHOGVVSPFEQF2JQ4KIOFZMBDJCH2PJFZJU7UK",
+    amount: "123.456",
+    sequence: 115521361698357411,
+    fee: 100,
+    // for new address that don't have on-chain data
+    // needCreateAccount: true
+}
+
+const { raw_tx, signature } = await device.sign("m/44'/148'/0'", content);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const { commandData, serialized } = SecuxXLM.prepareSign("m/44'/148'/0'", content);
+const response = await device.Exchange(commandData);
+const raw_tx = SecuxXLM.resolveTransaction(response, serialized);
+
+*/
+```
+
+# API Reference
+{{#class name="SecuxXLM"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxXLM ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-21 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

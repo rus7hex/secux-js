@@ -1,0 +1,55 @@
+{
+  "name": "@secux/app-xrp",
+  "version": "3.0.4",
+  "description": "SecuX Hardware Wallet XRP API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "xrp",
+    "ripple"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-xrp",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-xrp.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh && cp -r ./src/xrpl ./lib",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-xrp.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-xrp.ts ./lib/app-xrp.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.6",
+    "base-x": "^3.0.8",
+    "bip66": "^1.1.5",
+    "js-sha256": "^0.9.0",
+    "ripemd160": "^2.0.2",
+    "ripple-binary-codec": "^1.2.0",
+    "secp256k1": "^4.0.2"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "ripple-lib": "^1.10.0",
+    "xrpl": "^2.0.2"
+  }
+}

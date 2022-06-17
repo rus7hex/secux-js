@@ -1,0 +1,207 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/app-ada)](https://www.npmjs.com/package/@secux/app-ada)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/app-ada)](https://www.npmjs.org/package/@secux/app-ada)
+
+# `@secux/app-ada`
+
+> SecuX Hardware Wallet ADA API
+
+## Usage
+
+```ts
+import { SecuxADA, AddressType } from "@secux/app-ada";
+```
+
+First, create instance of ITransport
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br />
+
+## Examples
+1. Get shelley address
+    - base address
+    ```ts
+    const path = "m/1852'/1815'/0'";
+    const address = await device.getAddress(path, AddressType.BASE);
+
+    /*
+
+    // transfer data to hardware wallet by custom transport layer
+    const data = SecuxADA.prepareAddress(path);
+    const response = await device.Exchange(data);
+    const address = SecuxADA.resolveAddress(response, AddressType.BASE);
+
+    */
+    ```
+
+    - reward address
+    ```ts
+    const path = "m/1852'/1815'/0'";
+    const address = await device.getAddress(path, AddressType.REWARD);
+    ```
+
+2. Sign transaction
+    - transfer asset
+    ```ts
+    const inputs = [
+        {
+            path: "m/1852'/1815'/0'",
+            txId: "75c7d745c5212a11a0bfc2719c35bcc2f57fda88d7afb2eb3c5f2b02c3e99ccb",
+            index: 1,
+            amount: 12663894,
+            // for custom transport layer, each utxo needs xpublickey.
+            // xpublickey: "c232950d7c27b78542795ce4cad053e8dfaab7679ba5477563be5c60c1a4d0613fc81fd9bb8f30822c1252c29cc6af147831da44fb86acad6c04fcc95700b92b"
+        },
+        {
+            path: "m/1852'/1815'/0'",
+            txId: "6552b8f8b8b282542b07d6187fe80daa5b7a60461c97231f45c06fd97f8a3385",
+            index: 1,
+            amount: 2330624,
+            // for custom transport layer, each utxo needs xpublickey.
+            // xpublickey: "c232950d7c27b78542795ce4cad053e8dfaab7679ba5477563be5c60c1a4d0613fc81fd9bb8f30822c1252c29cc6af147831da44fb86acad6c04fcc95700b92b"
+        },
+    ];
+
+    const output = {
+        // daedalus or shelley address is accepted.
+        address: "DdzFFzCqrhsjZHKn8Y9Txr4B9PaEtYcYp8TGa4gQTfJfjvuNLqvB8hPG35WRgK4FjcSYhgK7b2H24jLMeqmPoS3YhJq6bjStsx4BZVnn",
+        amount: 13000000
+    };
+
+    const { raw_tx } = await device.sign(inputs, output, {
+        changeAddress: "addr1qyk54vyyc856ngxermdzqhxnlk376ykkupru8rxcyryvg4kxs4un3x4r4rq422kwrtvc8p2a20dzhyr5v0n9lhwy2u6sfjujuz",
+    });
+
+    /*
+
+    // transfer data to hardware wallet by custom transport layer.
+    const { commandData, serialized } = SecuxADA.prepareSign(inputs, output, {
+        changeAddress: "addr1qyk54vyyc856ngxermdzqhxnlk376ykkupru8rxcyryvg4kxs4un3x4r4rq422kwrtvc8p2a20dzhyr5v0n9lhwy2u6sfjujuz",
+    });
+    const response = await device.Exchange(commandData);
+    const raw_tx = SecuxADA.resloveTransaction(response, serialized);
+
+    */
+    ```
+
+    - stake
+    ```ts
+    const input = {
+        path: "m/1852'/1815'/0'",
+        utxo: [
+            {
+                txId: "75c7d745c5212a11a0bfc2719c35bcc2f57fda88d7afb2eb3c5f2b02c3e99ccb",
+                index: 1,
+                amount: 12663894,
+            }
+        ],
+        changeAddress: "addr1qyk54vyyc856ngxermdzqhxnlk376ykkupru8rxcyryvg4kxs4un3x4r4rq422kwrtvc8p2a20dzhyr5v0n9lhwy2u6sfjujuz",
+        // for custom transport layer, each utxo needs xpublickey.
+        // xpublickey: "c232950d7c27b78542795ce4cad053e8dfaab7679ba5477563be5c60c1a4d0613fc81fd9bb8f30822c1252c29cc6af147831da44fb86acad6c04fcc95700b92b"
+    };
+
+    // pool id (support bech32 encoded)
+    const pool = "ea595c6f726db925b6832af51795fd8a46e700874c735d204f7c5841";
+
+    const { raw_tx } = await device.sign(
+        input,
+        pool,
+        {
+            // An account needs to have a stake pool registration certificate 
+            // before it can participate in stake delegation between stake pools.
+            needRegistration: true
+        }
+    );
+
+    /*
+
+    // transfer data to hardware wallet by custom transport layer.
+    const { commandData, serialized } = SecuxADA.prepareStake(
+        input,
+        pool,
+        {
+            needRegistration: true
+        }
+    );
+    const response = await device.Exchange(commandData);
+    const raw_tx = SecuxADA.resolveTransaction(response, serialized);
+
+    */
+    ```
+
+    - withdrawal
+    ```ts
+    const withdrawAmount = 150000;
+    const { raw_tx } = await device.sign(input, withdrawAmount);
+
+    /*
+
+    // transfer data to hardware wallet by custom transport layer.
+    const { commandData, serialized } = SecuxADA.prepareStake(input, withdrawAmount);
+    const response = await device.Exchange(commandData);
+    const raw_tx = SecuxADA.resolveTransaction(response, serialized);
+
+    */
+    ```
+
+    - unstake (de-register staking key)
+    ```ts
+    const { raw_tx } = await device.sign(
+        input, 
+        {
+            // With de-registration operation, the balance of reward address must be 0.
+            withdrawAmount
+        }
+    );
+
+    /*
+
+    // transfer data to hardware wallet by custom transport layer.
+    const { commandData, serialized } = SecuxADA.prepareUnstake(input, { withdrawAmount });
+    const response = await device.Exchange(commandData);
+    const raw_tx = SecuxADA.resolveTransaction(response, serialized);
+
+    */
+    ```
+
+
+# API Reference
+{{#class name="SecuxADA"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxADA ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-21 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

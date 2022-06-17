@@ -1,0 +1,191 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/app-sol)](https://www.npmjs.com/package/@secux/app-sol)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/app-sol)](https://www.npmjs.org/package/@secux/app-sol)
+
+# `@secux/app-sol`
+
+> SecuX Hardware Wallet SOL API
+
+## Usage
+
+```ts
+import { SecuxSOL } from "@secux/app-sol";
+```
+
+First, create instance of ITransport.
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br/>
+
+## Examples
+1. Get address of bip-32 path.
+    - main account
+        ```ts
+        const path = "m/44'/501'/0'";
+        const address = await device.getAddress(path);
+
+        /*
+
+        // transfer data to hardware wallet by custom transport layer.
+        const data = SecuxBTC.prepareAddress(path);
+        const response = await device.Exchange(data);
+        const address = SecuxBTC.resolveAddress(response, path);
+
+        */
+        ```
+    - associated account
+        ```ts
+        const address = await device.getAddress(
+            "m/44'/501'/0'", 
+            // USDC
+            { mintAccount: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" }
+        );
+        ``` 
+    - account with seed
+        ```ts
+        const address = await device.getAddress(
+            "m/44'/501'/0'",
+            { 
+                seed: "seed",
+                programId: "Stake11111111111111111111111111111111111111"
+            }
+        );
+        ```
+
+2. Sign transaction.
+    - transfer asset
+        ```ts
+        const { raw_tx } = await device.sign(
+            "<recentBlockhash>",
+            instructions: [
+                {
+                    type: "transfer",
+                    params: {
+                        to: "<reciever account>",
+                        lamports: 1e9,
+                        path: "m/44'/501'/0'"
+                    }
+                }
+            ]
+        );
+
+        /*
+
+        // transfer data to hardware wallet by custom transport layer.
+        const { commandData, serialized } = SecuxSOL.prepareSign(
+            "<recentBlockhash>",
+            instructions: [
+                {
+                    type: "transfer",
+                    params: {
+                        from: "<sender's account>",
+                        to: "<reciever's account>",
+                        lamports: 1e9,
+                        path: "m/44'/501'/0'"
+                    }
+                }
+            ]
+        );
+        const response = await device.Exchange(commandData);
+        const raw_tx = SecuxSOL.resloveTransaction(response, serialized);
+
+        */
+        ```
+
+    - transfer SPL token
+        ```ts
+        const { raw_tx } = await device.sign(
+            "<recentBlockhash>",
+            instructions: 
+                SecuxSOL.Action.transferToken(
+                    {
+                        to: "<reciever's account>",
+                        owner: "<sender's account>",
+                        amount: 1e6,
+                        mint: "<token mint account>",
+                        decimal: 6,
+                        path: "m/44'/501'/0'",
+                        // create ATA for reciever
+                        createAccount: true
+                    }
+                )
+        );
+        ```
+
+    - native staking
+        ```ts
+        const { raw_tx } = await device.sign(
+            "<recentBlockhash>",
+            instructions: 
+                SecuxSOL.Action.stake(
+                    {
+                        owner: "<main account>",
+                        stake: "<stake account>",
+                        vote: "<vote account>",
+                        lamports: 1e9,
+                        path: "m/44'/501'/0'",
+
+                        // if give a seed, the createWithSeed instruction will be included.
+                        // stake: "<arbitrary string>"
+                    }
+                )
+        );
+        ```
+
+    - unstake
+        ```ts
+        const { raw_tx } = await device.sign(
+            "<recentBlockhash>",
+            instructions: 
+                SecuxSOL.Action.unstake(
+                    {
+                        owner: "<main account>",
+                        stake: "<stake account or seed>",
+                        lamports: <withdraw amount>,
+                        path: "m/44'/501'/0'"
+                    }
+                )
+        );
+        ```
+
+
+# API Reference
+{{#class name="SecuxSOL"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxSOL ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-22 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

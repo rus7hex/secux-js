@@ -1,0 +1,45 @@
+{
+  "name": "@secux/protocol-device",
+  "version": "3.0.3",
+  "description": "SecuX Hardware Wallet device protocol API",
+  "keywords": [
+    "secux",
+    "protocol",
+    "device"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/protocol-device",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/protocol-device.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh && npx webpack --config ./webpack.dfu.config.js",
+    "docs": "npx tsc && jsdoc2md --template ./README.hbs ./lib/protocol-device.js > README.md",
+    "test:webusb": "npx webpack serve --progress --config ./webpack.config.js --output-path ./__tests__",
+    "test:webble": "npx webpack serve --progress --config ./webpack.ble.config.js --output-path ./__tests__",
+    "test:webhid": "npx webpack serve --progress --config ./webpack.hid.config.js --output-path ./__tests__",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/utility": "^3.0.6"
+  },
+  "devDependencies": {
+    "@secux/transport": "file:../transport",
+    "@secux/transport-webusb": "file:../transport-webusb",
+    "crc-32": "^1.2.0",
+    "jszip-sync": "^3.2.1-sync",
+    "threads": "^1.7.0",
+    "threads-plugin": "^1.4.0"
+  }
+}

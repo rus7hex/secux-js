@@ -1,0 +1,65 @@
+{
+  "name": "@secux/app-btc",
+  "version": "3.2.5",
+  "description": "SecuX Hardware Wallet BTC API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "btc",
+    "btc-like"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-btc",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-btc.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-btc.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-btc.ts ./lib/app-btc.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.8",
+    "bech32": "^2.0.0",
+    "bigi": "^1.4.2",
+    "bip174": "~2.0.1",
+    "bip66": "^1.1.5",
+    "cashaddrjs": "^0.4.4",
+    "ecurve": "^1.0.6",
+    "groestl-hash-js": "^1.0.0",
+    "hash.js": "^1.1.7",
+    "secp256k1": "^4.0.3",
+    "varuint-bitcoin": "^1.1.2"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "@bitgo/utxo-lib": "^1.9.6",
+    "@mempool/mempool.js": "^2.2.5",
+    "bitcoinjs-lib": "^6.0.1",
+    "cashaddress": "^1.1.0",
+    "ecpair": "^1.0.1",
+    "groestlcoin-address-validation": "^1.0.0",
+    "groestlcoinjs-lib": "^5.2.0",
+    "tiny-secp256k1": "^2.1.2"
+  }
+}

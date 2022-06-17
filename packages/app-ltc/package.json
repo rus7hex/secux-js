@@ -1,0 +1,34 @@
+{
+  "name": "@secux/app-ltc",
+  "version": "3.0.0",
+  "description": "SecuX Hardware Wallet LTC API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "ltc",
+    "litecoin",
+    "btc-like"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-ltc",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-ltc.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh"
+  },
+  "dependencies": {
+    "@secux/app-btc": "^3.0.0"
+  }
+}

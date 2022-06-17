@@ -1,0 +1,701 @@
+/*!
+Copyright 2022 SecuX Technology Inc
+Copyright Chen Wei-En
+Copyright Wu Tsung-Yu
+
+Licensed under the Apache License, Version 2.0 (the License);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an AS IS BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+
+import { cardano } from "./load_lib";
+const cardanoV1 = require("cardano-crypto.js");
+import { communicationData, getBuffer, ow_communicationData, toCommunicationData, wrapResult } from "@secux/utility/lib/communication";
+import {
+    AddressOption, AddressType, ow_AddressOption, ow_fullPath, ow_path, ow_PointerOption, ow_poolHash,
+    ow_signOption, ow_stakeInput, ow_stakeOption, ow_txInput, ow_txOutput, ow_unstakeOption, ow_withdrawOption, ow_xpublickey, signOption, stakeInput, stakeOption, txInput, txOutput, unstakeOption, withdrawOption
+} from "./interface";
+import { SecuxTransactionTool } from "@secux/protocol-transaction";
+import { EllipticCurve, TransactionType } from "@secux/protocol-transaction/lib/interface";
+import ow from "ow";
+import { loadPlugin, Logger, owTool, Signature } from "@secux/utility";
+import { IPlugin, ITransport, staticImplements } from "@secux/transport";
+export { SecuxADA, AddressType };
+const logger = Logger?.child({ id: "ada" });
+
+
+const HardenedOffset = 0x80000000;
+const calculateFee = (size: number) => cardano.__fee_a * size + cardano.__fee_b;
+
+
+/**
+ * ADA package for SecuX device
+ */
+@staticImplements<IPlugin>()
+class SecuxADA {
+    /**
+     * Convert bip32-publickey to ADA address.
+     * @param {string|Buffer} xpublickey ada bip32-publickey
+     * @param {AddressType} type
+     * @param {AddressOption} [option]
+     * @returns {string} address
+     */
+    static addressConvert(xpublickey: string | Buffer, type: AddressType, option?: AddressOption): string {
+        ow(xpublickey, ow_xpublickey);
+        ow(type, ow.number.inRange(0, AddressType.__LENGTH - 1));
+        ow(option as AddressOption, ow.any(ow.undefined, ow_AddressOption));
+
+
+        const ed25519key = convertToBuffer(xpublickey);
+        const pubkey = cardano.Bip32PublicKey.from_bytes(ed25519key);
+        const utxoKey = pubkey.derive(0).derive(option?.addressIndex ?? 0);
+        const stakeKey = pubkey.derive(2).derive(option?.stakeIndex ?? 0);
+
+        switch (type) {
+            case AddressType.BOOTSTRAPv1:
+                const { pbkdf2Sync } = require("pbkdf2");
+                const passphrase = pbkdf2Sync(ed25519key, "address-hashing", 500, 32, "sha512");
+
+                return cardanoV1.base58.encode(cardanoV1.packBootstrapAddress(
+                    [HardenedOffset, HardenedOffset | (option?.addressIndex ?? 0)],
+                    ed25519key,
+                    passphrase,
+                    1,
+                    cardano.NetworkInfo.mainnet().protocol_magic()
+                ));
+
+            case AddressType.BOOTSTRAPv2:
+                return cardano.ByronAddress.icarus_from_key(
+                    utxoKey,
+                    cardano.NetworkInfo.mainnet().protocol_magic()
+                ).to_base58();
+
+            case AddressType.BASE:
+                return cardano.BaseAddress.new(
+                    cardano.NetworkInfo.mainnet().network_id(),
+                    cardano.StakeCredential.from_keyhash(utxoKey.to_raw_key().hash()),
+                    cardano.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash())
+                ).to_address().to_bech32();
+
+            case AddressType.ENTERPRISE:
+                return cardano.EnterpriseAddress.new(
+                    cardano.NetworkInfo.mainnet().network_id(),
+                    cardano.StakeCredential.from_keyhash(utxoKey.to_raw_key().hash())
+                ).to_address().to_bech32();
+
+            case AddressType.POINTER:
+                const params = option!.pointer;
+                ow(params, ow_PointerOption);
+                return cardano.PointerAddress.new(
+                    cardano.NetworkInfo.mainnet().network_id(),
+                    cardano.StakeCredential.from_keyhash(utxoKey.to_raw_key().hash()),
+                    cardano.Pointer.new(
+                        params.slot,
+                        params.txIndex,
+                        params.certIndex
+                    )
+                ).to_address().to_bech32();
+
+            case AddressType.REWARD:
+                return cardano.RewardAddress.new(
+                    cardano.NetworkInfo.mainnet().network_id(),
+                    cardano.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash())
+                ).to_address().to_bech32();
+
+            default:
+                throw Error(`ArgumentError: unsupported address type, got ${AddressType[type]}`);
+        }
+    }
+
+    /**
+     * Prepare data for address generation.
+     * @param {string} pathWith3Depth m/1852'/1815'/...
+     * @returns {communicationData} data for sending to device
+     */
+    static prepareAddress(pathWith3Depth: string): communicationData {
+        return SecuxADA.prepareXPublickey(pathWith3Depth);
+    }
+
+    /**
+     * Resolve address from response data.
+     * @param {communicationData} response data from device
+     * @param {AddressType} type 
+     * @param {AddressOption} [option]
+     * @returns {string} address
+     */
+    static resolveAddress(response: communicationData, type: AddressType, option?: AddressOption): string {
+        ow(type, ow.number.inRange(0, AddressType.__LENGTH));
+        const pk = SecuxADA.resolveXPublickey(response);
+
+        return SecuxADA.addressConvert(pk, type, option);
+    }
+
+    /**
+     * Prepare data for bip32-publickey.
+     * @param {string} pathWith3Depth m/1852'/1815'/...
+     * @returns {communicationData} data for sending to device
+     */
+    static prepareXPublickey(pathWith3Depth: string): communicationData {
+        ow(pathWith3Depth, ow_path);
+
+        return SecuxTransactionTool.getXPublickey(pathWith3Depth, EllipticCurve.ED25519_ADA);
+    }
+
+    /**
+     * Resolve bip32-publickey from response data.
+     * @param {communicationData} response data from device
+     * @returns {string} bip32-publickey (hex string)
+     */
+    static resolveXPublickey(response: communicationData): string {
+        return SecuxTransactionTool.resolveXPublickey(response, undefined, EllipticCurve.ED25519_ADA);
+    }
+
+    /**
+     * Prepare data for signing.
+     * @param {Array<txInput>} inputs 
+     * @param {txOutput} output 
+     * @param {signOption} [option] 
+     * @returns {prepared}
+     */
+    static prepareSign(inputs: Array<txInput>, output: txOutput, option?: signOption) {
+        ow(inputs, ow.array.ofType(ow_txInput));
+        ow(output, ow_txOutput);
+        ow(option as signOption, ow.any(ow.undefined, ow_signOption));
+
+
+        const config = (output.address.startsWith("DdzFF")) ? cardano.__byronConfig : cardano.__config;
+        const { builder, paths, publickeys } = CreateBaseTransaction(inputs, config);
+
+
+        let address;
+        try {
+            address = cardano.Address.from_bech32(output.address);
+        }
+        catch (error) {
+            address = cardano.Address.from_bytes(
+                cardanoV1.base58.decode(output.address)
+            );
+        }
+
+        builder.add_output(
+            cardano.TransactionOutput.new(
+                address,
+                cardano.Value.new(cardano.BigNum.from_str(output.amount.toString(10)))
+            )
+        );
+
+
+        const rawTx = CreateRawTransaction(builder, option);
+        return CreateCommandData(paths, publickeys, rawTx);
+    }
+
+    /**
+     * Reslove signatures from response data.
+     * @param {communicationData} response data from device
+     * @returns {Array<string>} signature array of hex string
+     */
+    static resolveSignatureList(response: communicationData) {
+        const sigBufList = SecuxTransactionTool.resolveSignatureList(response).map(x => Buffer.from(x, "base64"));
+        const sigList = sigBufList.map(x => Signature.fromSignature(x));
+
+        return sigList.map(x => Buffer.concat([x.r, x.s]).toString("hex"));
+    }
+
+    /**
+     * Resolve transaction for broadcasting.
+     * @param {communicationData} response data from device
+     * @param {communicationData} serialized 
+     * @returns {string} signed transaction (base64 encoded)
+     */
+    static resolveTransaction(response: communicationData, serialized: communicationData) {
+        ow(serialized, ow_communicationData);
+
+        const txObj = JSON.parse(getBuffer(serialized).toString());
+        const signatures = SecuxADA.resolveSignatureList(response);
+
+        if (signatures.length !== txObj.publickeys.length) {
+            throw Error(`expect ${txObj.publickeys.length} signature(s), but got ${signatures.length}`);
+        }
+
+        const txbody = cardano.TransactionBody.from_bytes(Buffer.from(txObj.rawTx, "hex"));
+        const vkeys = cardano.Vkeywitnesses.new();
+        for (let i = 0; i < txObj.publickeys.length; i++) {
+            const publickey = cardano.PublicKey.from_bytes(convertToBuffer(txObj.publickeys[i]));
+            const signature = cardano.Ed25519Signature.from_hex(signatures[i]);
+
+            if (!publickey.verify(cardano.hash_transaction(txbody).to_bytes(), signature)) {
+                logger?.error(`signature error, got signature ${signatures[i]} and publickey ${txObj.publickeys[i]}`);
+                throw Error(`Signature error #${i}`);
+            }
+
+            vkeys.add(cardano.Vkeywitness.new(
+                cardano.Vkey.new(publickey),
+                signature
+            ));
+        }
+
+        const witness = cardano.TransactionWitnessSet.new();
+        witness.set_vkeys(vkeys);
+
+        const tx = cardano.Transaction.new(txbody, witness);
+        if (!tx.is_valid()) {
+            logger?.debug(`Cannot finalize transaction, tx: ${txObj.rawTx}\n`);
+            for (let i = 0; i < signatures.length; i++) {
+                logger?.debug(`signature#${i}: ${signatures[i]}`);
+            }
+
+            throw Error("Cannot finalize transaction.");
+        }
+
+        return Buffer.from(tx.to_bytes()).toString("base64");
+    }
+
+    /**
+     * Prepare data for signing.
+     * @param {stakeInput} input 
+     * @param {string} pool pool hash or id
+     * @param {stakeOption} [option] 
+     * @returns {prepared}
+     */
+    static prepareStake(input: stakeInput, pool: string, option?: stakeOption) {
+        ow(input, ow_stakeInput);
+        ow(pool, ow.any(ow_poolHash, owTool.hexString.length(56)));
+        ow(option as stakeOption, ow.any(ow.undefined, ow_stakeOption));
+
+
+        const stakeIndex = option?.stakeIndex ?? 0;
+        const stakeKey = xpubToPublickey(convertToBuffer(input.xpublickey), 2, stakeIndex);
+        const stakeCert = cardano.StakeCredential.from_keyhash(
+            cardano.PublicKey.from_bytes(stakeKey).hash()
+        );
+
+        const certs = cardano.Certificates.new();
+        if (option?.needRegistration) {
+            certs.add(
+                cardano.Certificate.new_stake_registration(cardano.StakeRegistration.new(stakeCert))
+            );
+        }
+
+        certs.add(cardano.Certificate.new_stake_delegation(
+            cardano.StakeDelegation.new(
+                stakeCert,
+                (pool.startsWith("pool")) ? cardano.Ed25519KeyHash.from_bech32(pool)
+                    : cardano.Ed25519KeyHash.from_bytes(Buffer.from(pool, "hex"))
+            )
+        ));
+
+
+        const inputs = input.utxo.map(x => ({
+            path: input.path,
+            xpublickey: input.xpublickey,
+            ...x
+        }));
+        const { builder, paths, publickeys } = CreateBaseTransaction(inputs);
+        builder.set_certs(certs);
+
+        // need to sign with stake key
+        paths.push(`${input.path}/2/${stakeIndex}`);
+        publickeys.push(stakeKey);
+
+
+        const rawTx = CreateRawTransaction(builder, {
+            fee: option?.fee,
+            TimeToLive: option?.TimeToLive,
+            changeAddress: input.changeAddress
+        });
+        return CreateCommandData(paths, publickeys, rawTx);
+    }
+
+    /**
+     * Prepare data for signing.
+     * @param {stakeInput} input 
+     * @param {unstakeOption} [option] 
+     * @returns {prepared}
+     */
+    static prepareUnstake(input: stakeInput, option?: unstakeOption) {
+        ow(input, ow_stakeInput);
+        ow(option as unstakeOption, ow.any(ow.undefined, ow_unstakeOption));
+
+
+        const stakeIndex = option?.stakeIndex ?? 0;
+        const stakeKey = xpubToPublickey(convertToBuffer(input.xpublickey), 2, stakeIndex);
+        const stakeCert = cardano.StakeCredential.from_keyhash(
+            cardano.PublicKey.from_bytes(stakeKey).hash()
+        );
+
+        const certs = cardano.Certificates.new();
+        certs.add(cardano.Certificate.new_stake_deregistration(
+            cardano.StakeDeregistration.new(stakeCert)
+        ));
+
+
+        const inputs = input.utxo.map(x => ({
+            path: input.path,
+            xpublickey: input.xpublickey,
+            ...x
+        }));
+        const { builder, paths, publickeys } = CreateBaseTransaction(inputs);
+        builder.set_certs(certs);
+
+        if (option?.withdrawAmount) {
+            const withdraws = cardano.Withdrawals.new();
+            withdraws.insert(
+                cardano.RewardAddress.new(
+                    cardano.NetworkInfo.mainnet().network_id(),
+                    stakeCert
+                ),
+                cardano.BigNum.from_str(option.withdrawAmount.toString(10))
+            );
+
+            builder.set_withdrawals(withdraws);
+        }
+
+        // need to sign with stake key
+        paths.push(`${input.path}/2/${stakeIndex}`);
+        publickeys.push(stakeKey);
+
+
+        const rawTx = CreateRawTransaction(builder, {
+            fee: option?.fee,
+            TimeToLive: option?.TimeToLive,
+            changeAddress: input.changeAddress
+        });
+        return CreateCommandData(paths, publickeys, rawTx);
+    }
+
+    /**
+     * Prepare data for signing.
+     * @param {stakeInput} input 
+     * @param {number | string} amount rewards
+     * @param {withdrawOption} [option] 
+     * @returns {prepared}
+     */
+    static prepareWithdraw(input: stakeInput, amount: number | string, option?: withdrawOption) {
+        ow(input, ow_stakeInput);
+        ow(amount, ow.any(ow.number.uint32.positive, owTool.numberString));
+        ow(option as withdrawOption, ow.any(ow.undefined, ow_withdrawOption));
+
+
+        const stakeIndex = option?.stakeIndex ?? 0;
+        const stakeKey = xpubToPublickey(convertToBuffer(input.xpublickey), 2, stakeIndex);
+        const stakeCert = cardano.StakeCredential.from_keyhash(
+            cardano.PublicKey.from_bytes(stakeKey).hash()
+        );
+
+        const withdraws = cardano.Withdrawals.new();
+        withdraws.insert(
+            cardano.RewardAddress.new(
+                cardano.NetworkInfo.mainnet().network_id(),
+                stakeCert
+            ),
+            cardano.BigNum.from_str(amount.toString(10))
+        );
+
+        const inputs = input.utxo.map(x => ({
+            path: input.path,
+            xpublickey: input.xpublickey,
+            ...x
+        }));
+        const { builder, paths, publickeys } = CreateBaseTransaction(inputs);
+        builder.set_withdrawals(withdraws);
+
+        // need to sign with stake key
+        paths.push(`${input.path}/2/${stakeIndex}`);
+        publickeys.push(stakeKey);
+
+
+        const rawTx = CreateRawTransaction(builder, {
+            fee: option?.fee,
+            TimeToLive: option?.TimeToLive,
+            changeAddress: input.changeAddress
+        });
+        return CreateCommandData(paths, publickeys, rawTx);
+    }
+
+    static async getAddress(this: ITransport, pathWith3Depth: string, type: AddressType, option?: AddressOption) {
+        const data = SecuxADA.prepareAddress(pathWith3Depth);
+        const rsp = await this.Exchange(getBuffer(data));
+        const address = SecuxADA.resolveAddress(rsp, type, option);
+
+        return address;
+    }
+
+    static async getPublickey(this: ITransport, path: string, useCIP1852 = true): Promise<string> {
+        ow(path, ow_fullPath);
+
+        const elements = path.match(/\d+/g)!;
+        const data = SecuxADA.prepareXPublickey(`m/${elements[0]}'/${elements[1]}'/${elements[2]}'`);
+        const rsp = await this.Exchange(getBuffer(data));
+        const xpublickey = convertToBuffer(SecuxADA.resolveXPublickey(rsp));
+
+        const change = parseInt(elements[3], 10);
+        const index = parseInt(elements[4], 10);
+
+        return xpubToPublickey(xpublickey, change, index, useCIP1852).toString("hex");
+    }
+
+    static async getXPublickey(this: ITransport, pathWith3Depth: string): Promise<string> {
+        const data = SecuxADA.prepareXPublickey(pathWith3Depth);
+        const rsp = await this.Exchange(getBuffer(data));
+        const xpublickey = SecuxADA.resolveXPublickey(rsp);
+
+        return xpublickey;
+    }
+
+    static async sign(this: ITransport, inputs: Array<txInput>, output: txOutput, option?: signOption): Promise<{ raw_tx: string }>
+    static async sign(this: ITransport, input: stakeInput, pool: string, option?: stakeOption): Promise<{ raw_tx: string }>
+    static async sign(this: ITransport, input: stakeInput, option?: unstakeOption): Promise<{ raw_tx: string }>
+    static async sign(this: ITransport, input: stakeInput, amount: number | string, option?: withdrawOption): Promise<{ raw_tx: string }>
+    static async sign(this: ITransport, ...args: any[]) {
+        let func: any = SecuxADA.prepareSign;
+        if (Array.isArray(args[0])) {
+            const xpubCache: { [path: string]: string } = {};
+            for (const txIn of args[0]) {
+                ow(txIn.path, ow_path);
+
+                if (!xpubCache[txIn.path]) {
+                    xpubCache[txIn.path] = await SecuxADA.getXPublickey.call(this, txIn.path);
+                }
+
+                txIn.xpublickey = xpubCache[txIn.path];
+            }
+
+            func = SecuxADA.prepareSign;
+        }
+        else {
+            args[0].xpublickey = await SecuxADA.getXPublickey.call(this, args[0].path);
+
+            if (args[1] === undefined || typeof args[1] === "object") {
+                func = SecuxADA.prepareUnstake;
+            }
+            else if (typeof args[1] === "string" && (args[1].startsWith("pool") || args[1].length === 56)) {
+                func = SecuxADA.prepareStake;
+            }
+            else {
+                func = SecuxADA.prepareWithdraw;
+            }
+        }
+
+
+        const { commandData, serialized } = func(...args);
+        const rsp = await this.Exchange(getBuffer(commandData));
+        const raw_tx = SecuxADA.resolveTransaction(rsp, serialized);
+
+        return { raw_tx }
+    }
+}
+
+loadPlugin(SecuxADA, "SecuxADA");
+
+
+function convertToBuffer(data: string | Buffer) {
+    const pk = (typeof data === "string") ? Buffer.from(data, "hex") : data;
+    return pk;
+}
+
+function xpubToPublickey(xpub: Buffer, change: number, index: number, useCIP1852: boolean = true): Buffer {
+    if (useCIP1852) {
+        const changeKey = cardanoV1.derivePublic(xpub, change, 2);
+        const indexKey = cardanoV1.derivePublic(changeKey, index, 2);
+
+        return Buffer.from(indexKey.slice(0, 32));
+    }
+
+    const bip32Pub = cardano.Bip32PublicKey.from_bytes(xpub);
+
+    return Buffer.from(
+        bip32Pub.derive(change).derive(index).as_bytes().slice(0, 32)
+    );
+}
+
+
+function CreateBaseTransaction(inputs: Array<txInput>, config?: Array<any>) {
+    const c = config ?? cardano.__config;
+    const builder = cardano.TransactionBuilder.new(...c);
+
+    const paths = [];
+    const publickeys = [];
+    for (const txIn of inputs) {
+        const index = txIn.addressIndex ?? 0;
+        const pk = xpubToPublickey(convertToBuffer(txIn.xpublickey!), 0, index);
+
+        const utxo = cardano.TransactionInput.new(
+            cardano.TransactionHash.from_bytes(Buffer.from(txIn.txId, "hex")),
+            txIn.index
+        );
+        const amount = cardano.Value.new(cardano.BigNum.from_str(txIn.amount.toString(10)));
+
+        builder.add_key_input(
+            cardano.PublicKey.from_bytes(pk).hash(),
+            utxo,
+            amount
+        );
+        paths.push(`${txIn.path}/0/${index}`);
+        publickeys.push(pk);
+    }
+
+    return { builder, paths, publickeys };
+}
+
+function CreateRawTransaction(builder: any, option?: signOption) {
+    if (!option) {
+        builder.set_fee(builder.min_fee());
+    }
+    else {
+        if (option.fee)
+            builder.set_fee(cardano.BigNum.from_str(option.fee.toString(10)));
+        else if (option.changeAddress)
+            builder.add_change_if_needed(cardano.Address.from_bech32(option.changeAddress));
+
+        if (option.TimeToLive) builder.set_ttl(option.TimeToLive);
+    }
+
+    const rawTx = Buffer.from(builder.build().to_bytes());
+    const fee = parseInt(builder.get_fee_if_set()!.to_str(), 10);
+    const minFee = calculateFee(rawTx.length);
+    if (fee < minFee) throw Error(`minimal transaction fee is ${minFee}, but got ${fee}.`);
+
+    return rawTx;
+}
+
+function CreateCommandData(paths: Array<string>, publickeys: Array<Buffer>, rawTx: Buffer): { commandData: communicationData, serialized: communicationData } {
+    const txs = paths.map(x => rawTx);
+    const commandData = SecuxTransactionTool.signRawTransactionList(
+        paths, txs, undefined,
+        {
+            tp: TransactionType.NORMAL,
+            curve: EllipticCurve.ED25519_ADA,
+            chainId: 0
+        }
+    );
+
+    const txObj = {
+        rawTx: rawTx.toString("hex"),
+        publickeys: publickeys.map(x => x.toString("hex"))
+    };
+    const serialized = Buffer.from(JSON.stringify(txObj));
+
+    return wrapResult({
+        commandData,
+        serialized: toCommunicationData(serialized)
+    });
+}
+
+/**
+ * Data type for transmission.
+ * @typedef {string | Buffer} communicationData
+ */
+
+/**
+ * Address type. (BASE ~ REWARD: Shelley-type)
+ * @typedef {enum} AddressType
+ * @property {number} BASE 0
+ * @property {number} ENTERPRISE 1
+ * @property {number} POINTER 2
+ * @property {number} REWARD 3
+ * @property {number} BOOTSTRAPv1 4
+ * @property {number} BOOTSTRAPv2 5
+ */
+
+/**
+ * Parameters of Pointer address.
+ * @typedef {object} PointerOption
+ * @property {number} slot
+ * @property {number} txIndex
+ * @property {number} certIndex
+ */
+
+/**
+ * Options for generating address.
+ * @typedef {object} AddressOption
+ * @property {number} [addressIndex] account index
+ * @property {number} [stakeIndex] stake key index
+ * @property {PointerOption} [pointer] option for Pointer address
+ */
+
+/**
+ * The UTXO object.
+ * @typedef {object} txInput
+ * @property {string} path 3-depth path of CIP-1852
+ * @property {string | Buffer} xpublickey ED25519 publickey from `path`
+ * @property {string} txId referenced transaction hash
+ * @property {number} index referenced transaction output index
+ * @property {number | string} amount referenced transaction output amount
+ * @property {number} [addressIndex] default: 0
+ * @property {number} [stakeIndex] default: 0
+ */
+
+/**
+ * The payment object.
+ * @typedef {object} txOutput
+ * @property {string} address receiver's address
+ * @property {number | string} amount amount of payment
+ */
+
+/**
+ * Option for payment.
+ * @typedef {object} signOption
+ * @property {string} [changeAddress] default: sender's address
+ * @property {number | string} [fee]
+ * @property {number} [TimeToLive]
+ */
+
+/**
+ * Option for staking.
+ * @typedef {object} stakeOption
+ * @property {number} [stakeIndex] default: 0
+ * @property {boolean} [needRegistration] include registration or not
+ * @property {number | string} [fee]
+ * @property {number} [TimeToLive]
+ */
+
+/**
+ * Option for withdraw rewards.
+ * @typedef {object} withdrawOption
+ * @property {number} [stakeIndex] default: 0
+ * @property {number | string} [fee]
+ * @property {number} [TimeToLive]
+ */
+
+/**
+ * Option for unstaking. (de-registration)
+ * @typedef {object} unstakeOption
+ * @property {number} [stakeIndex] default: 0
+ * @property {boolean} [withdrawAmount] withdraw and de-registration
+ * @property {number | string} [fee]
+ * @property {number} [TimeToLive]
+ */
+
+/**
+ * @typedef {object} utxo
+ * @property {string} txId referenced transaction hash
+ * @property {number} index referenced transaction output index
+ * @property {number | string} amount referenced transaction output amount
+ * @property {number} [addressIndex] default: 0
+ */
+
+/**
+ * Parameters for staking operations.
+ * @typedef {object} stakeInput
+ * @property {string} path 3-depth path of CIP-1852
+ * @property {Array<utxo>} utxo
+ * @property {string} changeAddress owner's account
+ * @property {string | Buffer} xpublickey cardano bip32-publickey
+ * @property {number} [stakeIndex] default: 0
+ */
+
+/**
+ * Object for the signing and validation.
+ * @typedef {object} prepared
+ * @property {communicationData} commandData data for sending to device
+ * @property {communicationData} serialized
+ */

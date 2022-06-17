@@ -1,0 +1,61 @@
+{
+  "name": "@secux/app-eth",
+  "version": "3.0.8",
+  "description": "SecuX Hardware Wallet ETH API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "eth",
+    "ethereum"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-eth",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-eth.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-eth.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-eth.ts ./lib/app-eth.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:webhid": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/hid.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@ethersproject/abi": "^5.5.0",
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.6",
+    "eth-sig-util": "^3.0.1",
+    "js-sha3": "^0.8.0",
+    "rlp": "^2.2.6",
+    "secp256k1": "^4.0.2",
+    "wallet-address-validator": "^0.2.4"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "@ethereumjs/common": "^2.4.0",
+    "@ethereumjs/tx": "^3.3.0",
+    "axios": "^0.21.4",
+    "bignumber.js": "^9.0.1",
+    "bip39": "^3.0.4",
+    "ethereumjs-wallet": "^1.0.1",
+    "web3": "^1.5.2"
+  }
+}

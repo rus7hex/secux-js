@@ -1,0 +1,108 @@
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
+[![view on npm](https://badgen.net/npm/v/@secux/app-xrp)](https://www.npmjs.com/package/@secux/app-xrp)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/app-xrp)](https://www.npmjs.org/package/@secux/app-xrp)
+
+# `@secux/app-xrp`
+
+> SecuX Hardware Wallet XRP API
+
+## Usage
+
+```ts
+import { SecuxXRP } from "@secux/app-xrp";
+```
+
+First, create instance of ITransport
+- [Web Usb](https://www.npmjs.com/package/@secux/transport-webusb)
+- [Web Bluetooth](https://www.npmjs.com/package/@secux/transport-webble)
+- [React Native Bluetooth](https://www.npmjs.com/package/@secux/transport-reactnative)
+
+<br/>
+
+## Examples
+1. Get address of bip44 path
+```ts
+const address = await device.getAddress("m/44'/144'/0'/0/0");
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const data = SecuxXRP.prepareAddress("m/44'/144'/0'/0/0");
+const response = await device.Exchange(data);
+const address = SecuxXRP.resolveAddress(response);
+
+*/
+```
+
+2. Sign transaction
+```ts
+let payment = {
+    TransactionType: "Payment",
+    Account: "rD17Ez7fBpuwVp6smfjYhPKD3pwiN5QGKX",
+    Destination: "rGNitVptpmpCNYC23LbQ9yfCnAf1Z6gq7X",
+    amount: 1e6
+};
+
+// fetch data from XRP api
+const { BroadcastClient } = require("xrpl");
+client = new BroadcastClient(["wss://s1.ripple.com"]);
+await client.connect();
+payment = await client.autofill(payment);
+
+// sign
+const raw_tx = await device.sign("m/44'/144'/0'/0/0", payment);
+
+/*
+
+// transfer data to hardware wallet by custom transport layer.
+const { commandData, serialized } = SecuxXRP.prepareSign("m/44'/144'/0'/0/0", {
+    ...payment,
+    SigningPubKey: "026771406ace54da2cae8b168862697ca35bc3db56c90f4270adb307ac9a38fe9c"
+});
+const response = await device.Exchange(data);
+const raw_tx = SecuxXRP.resolveTransaction(response, serialized);
+
+*/
+
+// broadcast
+await client.submit(raw_tx);
+```
+
+# API Reference
+{{#class name="SecuxXRP"}}
+{{>body~}}
+{{>member-index~}}
+<br/>
+{{#children inherited=SecuxXRP ~}} 
+<a name="{{{anchorName}}}"></a>
+
+{{>heading-indent}}**{{>sig-name}}**
+{{>deprecated~}}
+{{#if description}}*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+{{/children~}}
+{{/class}}
+
+{{#orphans}}
+{{#if properties}}{{>header~}}{{/if~}}
+{{>properties~}}
+<br/>
+{{/orphans}}
+
+* * *
+
+&copy; 2018-21 SecuX Technology Inc.
+
+authors:<br/>
+andersonwu@secuxtech.com

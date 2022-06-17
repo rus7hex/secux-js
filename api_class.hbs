@@ -1,0 +1,32 @@
+{{#class}}
+{{>header~}}
+{{>body~}}
+
+<h2>Properties</h2>
+
+{{#children~}} 
+
+{{>heading-indent}}{{name}}
+***
+{{>sig-name}}
+
+***
+{{>deprecated~}}
+{{#if description}}
+
+*{{{inlineLinks description}}}*
+
+{{/if}}
+{{>implements~}}
+{{>overrides~}}
+{{>returns~}}
+{{>throws~}}
+{{>access~}}
+{{>readOnly~}}
+{{>params~}}
+{{>properties~}}
+{{>examples~}}
+<br/>
+
+{{/children~}}
+{{/class}}

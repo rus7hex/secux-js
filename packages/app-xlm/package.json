@@ -1,0 +1,51 @@
+{
+  "name": "@secux/app-xlm",
+  "version": "3.0.2",
+  "description": "SecuX Hardware Wallet XLM API",
+  "keywords": [
+    "secux",
+    "sign",
+    "transaction",
+    "tx",
+    "xlm",
+    "stellar"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-xlm",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/app-xlm.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "doc": "npx tsc && jsdoc2md --template ./README.hbs ./lib/app-xlm.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/app-xlm.ts ./lib/app-xlm.js",
+    "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
+    "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
+    "test": "echo \"Error: run tests from root\" && exit 1",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/protocol-transaction": "^3.0.0",
+    "@secux/utility": "^3.0.6",
+    "stellar-base": "^5.3.0"
+  },
+  "peerDependencies": {
+    "@secux/transport": "^3.2.0"
+  },
+  "devDependencies": {
+    "ed25519-hd-key": "^1.2.0",
+    "stellar-sdk": "^8.2.5"
+  }
+}

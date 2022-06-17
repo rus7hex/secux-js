@@ -1,0 +1,10 @@
+node_modules
+.DS_Store
+browser/
+packages/**/lib/
+packages/**/dist/
+lerna-debug.log
+lerna-error.log
+yarn-error.log
+*.swp
+package-lock.json
