@@ -63,6 +63,17 @@ class SecuxTRX {
     }
 
     /**
+     * Convert TRX address to hex representation
+     * @param {string} address TRX address
+     * @returns {string} TRX address (hex)
+     */
+    static toHexAddress(address: string): string {
+        ow(address, ow.string);
+
+        return addressToHex(address);
+    }
+
+    /**
      * Prepare data for address generation.
      * @param {string} path m/44'/195'/...
      * @returns {communicationData} data for sending to device
@@ -296,10 +307,10 @@ function encodeABI(toAddress: string, amount: number | string): Buffer {
 
 function addressToHex(address: string): string {
     if (address.startsWith("T")) {
-        return bs58Decode(address).toString("hex").replace(ADDRESS_PREFIX_REGEX, "0x");
+        return bs58Decode(address).toString("hex");
     }
     else if (address.match(new RegExp(`^${ADDRESS_PREFIX.toString(16)}[0-9a-fA-F]+$`))) {
-        return address.replace(ADDRESS_PREFIX_REGEX, "0x");
+        return address;
     }
 
     throw Error(`Invalid Tron Address: ${address}`);

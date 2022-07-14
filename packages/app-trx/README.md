@@ -125,28 +125,17 @@ TRX package for SecuX device
 **Kind**: global class  
 
 * [SecuxTRX](#SecuxTRX)
-    * [.prepareAddress](#SecuxTRX.prepareAddress) ⇒ <code>communicationData</code>
     * [.addressConvert(publickey)](#SecuxTRX.addressConvert) ⇒ <code>string</code>
+    * [.toHexAddress(address)](#SecuxTRX.toHexAddress) ⇒ <code>string</code>
+    * [.prepareAddress(path)](#SecuxTRX.prepareAddress) ⇒ [<code>communicationData</code>](#communicationData)
     * [.resolveAddress(response)](#SecuxTRX.resolveAddress) ⇒ <code>string</code>
-    * [.preparePublickey(path)](#SecuxTRX.preparePublickey) ⇒ <code>communicationData</code>
+    * [.preparePublickey(path)](#SecuxTRX.preparePublickey) ⇒ [<code>communicationData</code>](#communicationData)
     * [.resolvePublickey(response)](#SecuxTRX.resolvePublickey) ⇒ <code>string</code>
-    * [.prepareXPublickey(path)](#SecuxTRX.prepareXPublickey) ⇒ <code>communicationData</code>
+    * [.prepareXPublickey(path)](#SecuxTRX.prepareXPublickey) ⇒ [<code>communicationData</code>](#communicationData)
     * [.resolveXPublickey(response, path)](#SecuxTRX.resolveXPublickey) ⇒
     * [.prepareSign(path, content)](#SecuxTRX.prepareSign) ⇒ [<code>prepared</code>](#prepared)
     * [.resolveSignature(response)](#SecuxTRX.resolveSignature) ⇒ <code>string</code>
     * [.resolveTransaction(response, serialized)](#SecuxTRX.resolveTransaction) ⇒ <code>string</code>
-
-<br/>
-<a name="SecuxTRX.prepareAddress"></a>
-
-### **SecuxTRX.prepareAddress ⇒ <code>communicationData</code>**
-*Prepare data for address generation.*
-
-**Returns**: <code>communicationData</code> - data for sending to device  
-
-| Param | Type | Description |
-| --- | --- | --- |
-| path | <code>string</code> | m/44'/195'/... |
 
 <br/>
 <a name="SecuxTRX.addressConvert"></a>
@@ -161,6 +150,30 @@ TRX package for SecuX device
 | publickey | <code>string</code> \| <code>Buffer</code> | 
 
 <br/>
+<a name="SecuxTRX.toHexAddress"></a>
+
+### **SecuxTRX.toHexAddress(address) ⇒ <code>string</code>**
+*Convert TRX address to hex representation*
+
+**Returns**: <code>string</code> - TRX address (hex)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| address | <code>string</code> | TRX address |
+
+<br/>
+<a name="SecuxTRX.prepareAddress"></a>
+
+### **SecuxTRX.prepareAddress(path) ⇒ [<code>communicationData</code>](#communicationData)**
+*Prepare data for address generation.*
+
+**Returns**: [<code>communicationData</code>](#communicationData) - data for sending to device  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| path | <code>string</code> | m/44'/195'/... |
+
+<br/>
 <a name="SecuxTRX.resolveAddress"></a>
 
 ### **SecuxTRX.resolveAddress(response) ⇒ <code>string</code>**
@@ -170,15 +183,15 @@ TRX package for SecuX device
 
 | Param | Type | Description |
 | --- | --- | --- |
-| response | <code>communicationData</code> | data from device |
+| response | [<code>communicationData</code>](#communicationData) | data from device |
 
 <br/>
 <a name="SecuxTRX.preparePublickey"></a>
 
-### **SecuxTRX.preparePublickey(path) ⇒ <code>communicationData</code>**
+### **SecuxTRX.preparePublickey(path) ⇒ [<code>communicationData</code>](#communicationData)**
 *Prepare data for secp256k1 publickey.*
 
-**Returns**: <code>communicationData</code> - data for sending to device  
+**Returns**: [<code>communicationData</code>](#communicationData) - data for sending to device  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -194,15 +207,15 @@ TRX package for SecuX device
 
 | Param | Type | Description |
 | --- | --- | --- |
-| response | <code>communicationData</code> | data from device |
+| response | [<code>communicationData</code>](#communicationData) | data from device |
 
 <br/>
 <a name="SecuxTRX.prepareXPublickey"></a>
 
-### **SecuxTRX.prepareXPublickey(path) ⇒ <code>communicationData</code>**
+### **SecuxTRX.prepareXPublickey(path) ⇒ [<code>communicationData</code>](#communicationData)**
 *Prepare data for xpub.*
 
-**Returns**: <code>communicationData</code> - data for sending to device  
+**Returns**: [<code>communicationData</code>](#communicationData) - data for sending to device  
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -218,7 +231,7 @@ TRX package for SecuX device
 
 | Param | Type | Description |
 | --- | --- | --- |
-| response | <code>communicationData</code> | data from device |
+| response | [<code>communicationData</code>](#communicationData) | data from device |
 | path | <code>string</code> | m/44'/195'/... |
 
 <br/>
@@ -244,7 +257,7 @@ TRX package for SecuX device
 
 | Param | Type | Description |
 | --- | --- | --- |
-| response | <code>communicationData</code> | data from device |
+| response | [<code>communicationData</code>](#communicationData) | data from device |
 
 <br/>
 <a name="SecuxTRX.resolveTransaction"></a>
@@ -256,15 +269,16 @@ TRX package for SecuX device
 
 | Param | Type | Description |
 | --- | --- | --- |
-| response | <code>communicationData</code> | data from device |
-| serialized | <code>communicationData</code> | raw transaction |
+| response | [<code>communicationData</code>](#communicationData) | data from device |
+| serialized | [<code>communicationData</code>](#communicationData) | raw transaction |
 
 <br/>
 
+<br/>
 <br/>
 <a name="transferData"></a>
 
-## transferData
+## transferData : <code>object</code>
 **Properties**
 
 | Name | Type | Description |
@@ -274,14 +288,14 @@ TRX package for SecuX device
 | amount | <code>number</code> | transfer amount |
 | blockID | <code>string</code> |  |
 | blockNumber | <code>number</code> |  |
+| timestamp | <code>number</code> |  |
 | [feeLimit] | <code>number</code> |  |
-| [timestamp] | <code>number</code> |  |
 | [expiration] | <code>number</code> |  |
 
 <br/>
 <a name="trc10_Data"></a>
 
-## trc10\_Data
+## trc10\_Data : <code>object</code>
 **Properties**
 
 | Name | Type | Description |
@@ -292,14 +306,14 @@ TRX package for SecuX device
 | amount | <code>number</code> | transfer amount |
 | blockID | <code>string</code> |  |
 | blockNumber | <code>number</code> |  |
+| timestamp | <code>number</code> |  |
 | [feeLimit] | <code>number</code> |  |
-| [timestamp] | <code>number</code> |  |
 | [expiration] | <code>number</code> |  |
 
 <br/>
 <a name="trc20_Data"></a>
 
-## trc20\_Data
+## trc20\_Data : <code>object</code>
 **Properties**
 
 | Name | Type | Description |
@@ -311,23 +325,23 @@ TRX package for SecuX device
 | [data] | <code>string</code> | abi encoded string |
 | blockID | <code>string</code> |  |
 | blockNumber | <code>number</code> |  |
+| timestamp | <code>number</code> |  |
 | [callValue] | <code>number</code> | amount of TRX to send to the contract when triggers. |
 | [tokenId] | <code>number</code> | id of TRC-10 token to be sent to the contract. |
 | [tokenValue] | <code>number</code> | amount of TRC-10 token to send to the contract when triggers. |
 | [feeLimit] | <code>number</code> |  |
-| [timestamp] | <code>number</code> |  |
 | [expiration] | <code>number</code> |  |
 
 <br/>
 <a name="prepared"></a>
 
-## prepared
+## prepared : <code>object</code>
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| commandData | <code>communicationData</code> | data for sending to device |
-| rawTx | <code>communicationData</code> | unsigned raw transaction |
+| commandData | [<code>communicationData</code>](#communicationData) | data for sending to device |
+| rawTx | [<code>communicationData</code>](#communicationData) | unsigned raw transaction |
 
 <br/>
 
