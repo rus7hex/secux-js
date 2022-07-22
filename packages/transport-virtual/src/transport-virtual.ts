@@ -178,6 +178,7 @@ class SecuxVirtualTransport extends ITransport {
         let root: IHDKey;
         switch (curve) {
             case EllipticCurve.SECP256K1:
+            case EllipticCurve.SECP256K1_LOW_R:
                 root = HDKey.fromMasterSeed(this.#seed, hashmap[parse[1]]);
                 break;
 
