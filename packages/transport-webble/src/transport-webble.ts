@@ -114,6 +114,9 @@ class SecuxWebBLE extends ITransport {
      */
     async Write(data: Buffer) {
         await this.#writer!.writeValueWithoutResponse(data);
+        
+        // send too fast will fail to update SE
+        await new Promise(resolve => setTimeout(resolve, 1));
     }
 
     /**
