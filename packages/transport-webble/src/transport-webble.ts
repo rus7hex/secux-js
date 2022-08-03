@@ -26,6 +26,8 @@ export { SecuxWebBLE };
 
 
 const callback = () => { };
+const ValueChangedId = "characteristicvaluechanged";
+const GattDisconnectedId = "gattserverdisconnected";
 
 
 /**
@@ -38,6 +40,7 @@ class SecuxWebBLE extends ITransport {
     #reader?: BluetoothRemoteGATTCharacteristic;
     #writer?: BluetoothRemoteGATTCharacteristic;
     #type?: DeviceType;
+    #connected: boolean = false;
     #OnConnected: Function;
     #OnDisconnected: Function;
 
@@ -47,6 +50,14 @@ class SecuxWebBLE extends ITransport {
         this.#device = device;
         this.#OnConnected = OnConnected ?? callback;
         this.#OnDisconnected = OnDisconnected ?? callback;
+
+        this.#device.addEventListener(GattDisconnectedId, () => {
+            this.#reader!.removeEventListener(ValueChangedId, this.#handleNotifications);
+            this.#reader = undefined;
+            this.#writer = undefined;
+
+            if (this.#connected) this.#OnDisconnected();
+        });
     }
 
     /**
@@ -57,12 +68,10 @@ class SecuxWebBLE extends ITransport {
      */
     static async Create(OnConnected?: Function, OnDisconnected?: Function, devices?: Array<DeviceType>): Promise<SecuxWebBLE> {
         const types = devices ?? [DeviceType.crypto];
-        const filters = Devices
-            .filter(x => types.includes(x.TYPE))
-            .map(x => ({ services: [x.SERVICE] }));
+        const filters = types.map(x => ({ services: [Devices[x].SERVICE] }));
         const device = await navigator.bluetooth.requestDevice({
             filters,
-            optionalServices: [...Devices.map(x => x.PRIMARY)]
+            optionalServices: [...Object.values(Devices).map(x => x.PRIMARY)]
         });
 
         return new SecuxWebBLE(device, OnConnected ?? callback, OnDisconnected ?? callback);
@@ -72,24 +81,8 @@ class SecuxWebBLE extends ITransport {
      * Connect to SecuX device by bluetooth on web
      */
     async Connect() {
-        const ValueChangedId = 'characteristicvaluechanged';
-        const handleNotifications = (event: Event) => {
-            //@ts-ignore
-            const value = event.target?.value;
-            if (value.buffer) this.ReceiveData(Buffer.from(value.buffer));
-        }
-
-        this.#device.addEventListener('gattserverdisconnected', () => {
-            this.#reader!.removeEventListener(ValueChangedId, handleNotifications)
-            this.#reader = undefined;
-            this.#writer = undefined;
-
-            this.#OnDisconnected();
-        });
-
         const server = await this.#device.gatt!.connect();
         if (!server) { throw "Cannot connect to device: BluetoothDevice.gatt is undefined"; }
-        this.#OnConnected();
 
         const services = await server.getPrimaryServices();
         const { service, uuid } = this.#identify(services);
@@ -100,12 +93,16 @@ class SecuxWebBLE extends ITransport {
         this.packetSize = uuid.PACKET;
 
         await this.#reader.startNotifications();
-        this.#reader.addEventListener(ValueChangedId, handleNotifications);
+        this.#reader.addEventListener(ValueChangedId, this.#handleNotifications);
 
-        ITransport.deviceType = this.#type;
         if (this.#type === DeviceType.nifty) {
+            await this.#checkPairing();
             await this.#setFirwmareVersion();
         }
+
+        ITransport.deviceType = this.#type;
+        this.#connected = true;
+        this.#OnConnected();
     }
 
     /**
@@ -115,6 +112,7 @@ class SecuxWebBLE extends ITransport {
         this.#device.gatt!.disconnect();
         this.#reader = undefined;
         this.#writer = undefined;
+        this.#connected = false;
     }
 
     /**
@@ -151,6 +149,58 @@ class SecuxWebBLE extends ITransport {
     get MCU() { return this.#mcuVersion; }
     get SE() { return this.#seVersion; }
 
+
+    #handleNotifications = (event: Event) => {
+        //@ts-ignore
+        const value = event.target?.value;
+        if (value.buffer) this.ReceiveData(Buffer.from(value.buffer));
+    }
+
+    async #checkPairing() {
+        const timeout = 120000;
+        const interval = 5000;
+
+        const payload = Buffer.from([0x70, 0x61, 0x69, 0x72, 0x69, 0x6e, 0x67]);
+        const echoTest = async () => {
+            const data = Buffer.from([0x80 + 2 + payload.length, 0xf8, 0x08, ...payload]);
+            await this.Write(data);
+
+            let rsp = await this.Read();
+            while (!rsp) {
+                rsp = await this.Read();
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+
+            return rsp.slice(2);
+        };
+
+        for (let i = 0; i < timeout / interval; i++) {
+            // re-connect
+            if (!this.#reader || !this.#writer) {
+                const server = await this.#device.gatt!.connect();
+                if (!server) { throw "Cannot connect to device: BluetoothDevice.gatt is undefined"; }
+
+                const info = Devices[DeviceType.nifty];
+                const service = await server.getPrimaryService(info.PRIMARY);
+                this.#reader = await service.getCharacteristic(info.TX);
+                this.#writer = await service.getCharacteristic(info.RX);
+
+                await this.#reader.startNotifications();
+                this.#reader.addEventListener(ValueChangedId, this.#handleNotifications);
+            }
+
+            try {
+                const rsp: any = await Promise.race([
+                    echoTest(),
+                    new Promise((resolve) => setTimeout(resolve, interval))
+                ]);
+
+                if (rsp?.equals(payload)) return;
+            } catch (e) { /* still at pairing state */ }
+        }
+
+        throw Error("bluetooth pairing error");
+    }
 
     #identify(services: Array<BluetoothRemoteGATTService>) {
         for (const uuid of Object.values(Devices)) {

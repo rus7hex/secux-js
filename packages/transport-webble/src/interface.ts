@@ -21,23 +21,36 @@ import { ITransport } from "@secux/transport";
 import { DeviceType } from "@secux/transport/lib/interface";
 
 
-export const Devices = [
-    {
-        TYPE: DeviceType.crypto,
-        SERVICE: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-        PRIMARY: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-        RX: "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
-        TX: "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
-        PROTOCOL: ITransport.PROTOCOLv1,
-        PACKET: 64,
-    },
-    {
-        TYPE: DeviceType.nifty,
-        SERVICE: "0000180a-0000-1000-8000-00805f9b34fb",
-        PRIMARY: "7a200001-a171-69b8-8245-c41dd47bd699",
-        RX: "7a200002-a171-69b8-8245-c41dd47bd699",
-        TX: "7a200003-a171-69b8-8245-c41dd47bd699",
-        PROTOCOL: ITransport.PROTOCOLv2,
-        PACKET: 112,
-    }
-];
+type info = {
+    TYPE: DeviceType,
+    SERVICE: string,
+    PRIMARY: string,
+    RX: string,
+    TX: string,
+    PROTOCOL: number,
+    PACKET: number,
+}
+
+export const Devices: { [device: string]: info } = {};
+
+Devices[DeviceType.crypto] = {
+    TYPE: DeviceType.crypto,
+    SERVICE: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+    PRIMARY: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+    RX: "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+    TX: "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    PROTOCOL: ITransport.PROTOCOLv1,
+    PACKET: 64,
+};
+
+Devices[DeviceType.nifty] = {
+    TYPE: DeviceType.nifty,
+    SERVICE: "0000180a-0000-1000-8000-00805f9b34fb",
+    PRIMARY: "7a200001-a171-69b8-8245-c41dd47bd699",
+    RX: "7a200002-a171-69b8-8245-c41dd47bd699",
+    TX: "7a200003-a171-69b8-8245-c41dd47bd699",
+    PROTOCOL: ITransport.PROTOCOLv2,
+    PACKET: 112,
+};
+
+Object.freeze(Devices);
