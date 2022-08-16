@@ -111,7 +111,13 @@ class SecuxWebUSB extends ITransport {
     async Disconnect() {
         if (this.#device.opened) {
             await this.#device.releaseInterface(INTERFACE_ID);
-            await this.#device.reset();
+            try {
+                // Windows will occur error here.
+                await this.#device.reset();
+            }
+            catch {
+                // do nothing
+            }
             await this.#device.close();
         }
     }
