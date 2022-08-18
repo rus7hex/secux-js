@@ -86,9 +86,11 @@ class SecuxWebUSB extends ITransport {
 
             this.#connected = true;
             this.#DisconnectWatcher();
-            this.#Listener();
 
             if (this.#device.productId !== SECUX_USB_DEVICE.BOOTLOADER.productId) {
+                // Observer mode cannot work properly in web worker.
+                this.#Listener();
+
                 const data = SecuxDevice.prepareGetVersion();
                 const rsp = await this.Exchange(getBuffer(data));
                 const { mcuFwVersion, seFwVersion } = SecuxDevice.resolveVersion(rsp);
@@ -97,6 +99,12 @@ class SecuxWebUSB extends ITransport {
 
                 ITransport.mcuVersion = mcuFwVersion;
                 ITransport.seVersion = seFwVersion;
+            }
+            else {
+                Object.defineProperty(this, "Read", {
+                    configurable: false,
+                    get: () => this.#Read
+                });
             }
 
             ITransport.deviceType = DeviceType.crypto;
