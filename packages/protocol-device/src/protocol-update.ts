@@ -125,24 +125,27 @@ export class SecuxUpdate {
 
         window.addEventListener("beforeunload", alertExit);
 
-        const empty = Buffer.alloc(0);
-        let cmd = beginUpdate(data, false);
-        while (cmd.data.length !== 0) {
-            let rsp = empty;
-            if (cmd.needResponse) {
-                await device.Write(cmd.data);
-                rsp = await device.Read();
-            }
-            else {
-                await device.WritePacket(cmd.data);
-            }
+        try {
+            const empty = Buffer.alloc(0);
+            let cmd = beginUpdate(data, false);
+            while (cmd.data.length !== 0) {
+                let rsp = empty;
+                if (cmd.needResponse) {
+                    await device.Write(cmd.data);
+                    rsp = await device.Read();
+                }
+                else {
+                    await device.WritePacket(cmd.data);
+                }
 
-            callback?.call(undefined, cmd.progress);
+                callback?.call(undefined, cmd.progress);
 
-            cmd = proceed(rsp);
+                cmd = proceed(rsp);
+            }
         }
-
-        window.removeEventListener("beforeunload", alertExit);
+        finally {
+            window.removeEventListener("beforeunload", alertExit);
+        }
     }
 
     /**
@@ -176,10 +179,13 @@ async function updateInWorker(data: Uint8Array, callback?: StatusCallback) {
 
     window.addEventListener("beforeunload", alertExit);
 
-    await worker.update(data);
-    await Thread.terminate(worker);
-
-    window.removeEventListener("beforeunload", alertExit);
+    try {
+        await worker.update(data);
+        await Thread.terminate(worker);
+    }
+    finally {
+        window.removeEventListener("beforeunload", alertExit);
+    }
 }
 
 function alertExit(this: Window, ev: BeforeUnloadEvent) {
