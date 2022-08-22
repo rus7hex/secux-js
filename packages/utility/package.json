@@ -23,7 +23,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "sh ../../build.sh && sh dist.sh",
+    "build": "sh ../../build.sh",
     "test": "echo \"Error: run tests from root\" && exit 1",
     "tsc": "tsc"
   },

@@ -2,6 +2,7 @@
 
 rm -r ./lib
 
+npx webpack
 npx webpack --config ./webpack.base.config.js
 npx webpack --config ./webpack.update.config.js
 

@@ -6,14 +6,13 @@ const nodepolyfillPlugin = new webpack.ProvidePlugin({
     Buffer: ['buffer', 'Buffer'],
 });
 
+
 module.exports = {
-    entry: "./polyfill.js",
+    entry: './src/index.js',
     output: {
         path: `${__dirname}/lib`,
-        filename: 'ITransport.js',
-        library: {
-            type: 'umd'
-        }
+        filename: 'index.js',
+        libraryTarget: 'umd'
     },
     plugins: [nodepolyfillPlugin],
     mode: 'production',
@@ -31,10 +30,14 @@ module.exports = {
         fallback: {
             buffer: require.resolve('buffer/'),
             process: require.resolve('process'),
+            "react-native-logs": false,
             fs: false,
             os: false,
             path: false,
-            stream: false
+            stream: false,
+            http: false,
+            https: false,
+            zlib: false,
         }
     },
     experiments: {
@@ -42,6 +45,6 @@ module.exports = {
     },
     optimization: {
         minimize: true,
-        removeAvailableModules: true,
+        removeAvailableModules: true
     }
 }
