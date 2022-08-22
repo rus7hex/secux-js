@@ -1,6 +1,6 @@
 {
   "name": "@secux/utility",
-  "version": "3.0.10",
+  "version": "3.0.11",
   "description": "SecuX Hardware Wallet internal tools for SDK",
   "keywords": [
     "secux",
@@ -23,7 +23,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "sh ../../build.sh",
+    "build": "sh ../../build.sh && sh dist.sh",
     "test": "echo \"Error: run tests from root\" && exit 1",
     "tsc": "tsc"
   },
