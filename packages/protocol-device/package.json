@@ -1,6 +1,6 @@
 {
   "name": "@secux/protocol-device",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "description": "SecuX Hardware Wallet device protocol API",
   "keywords": [
     "secux",
