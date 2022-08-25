@@ -1,6 +1,6 @@
 {
   "name": "@secux/app-sol",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "SecuX Hardware Wallet SOL API",
   "keywords": [
     "secux",
@@ -31,6 +31,7 @@
     "doc:api": "sh ../../api_doc.sh ./src/app-sol.ts ./lib/app-sol.js",
     "test:webusb": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/usb.js",
     "test:webble": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/ble.js",
+    "test:webhid": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/hid.js",
     "test:virtual": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/virtual.js",
     "tsc": "tsc",
     "watch": "tsc --watch"
