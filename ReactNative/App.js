@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, Button, FlatList } from 'react-native';
 import Dialog from 'react-native-dialog';
 import { SecuxReactNativeBLE } from "@secux/transport-reactnative";
+import { DeviceType } from '@secux/transport/lib/interface';
 import "./mocha";
 
 
@@ -30,7 +31,7 @@ export default function App() {
     };
 
     const scan = () => {
-        SecuxReactNativeBLE.StartScan(AddDevice, DeleteDevice);
+        SecuxReactNativeBLE.StartScan(AddDevice, DeleteDevice, 2000, ["crypto", "nifty"]);
         SetScanning(true);
     };
 
@@ -46,7 +47,9 @@ export default function App() {
 
         await device.Connect();
 
-        ShowDialog(true);
+        if (device.DeviceType === DeviceType.crypto) {
+            ShowDialog(true);
+        }
     };
 
     const otp_processing = async () => {
@@ -88,13 +91,7 @@ export default function App() {
                 SetTitle(`${TITLE} (${passed}/${total})`);
             });
 
-            require("./src/protocol-device/test").test(GetDevice);
-            require("./src/btc/test").test(GetDevice);
             require("./src/eth/test").test(GetDevice);
-            require("./src/bnb/test").test(GetDevice);
-            require("./src/trx/test").test(GetDevice);
-            require("./src/xrp/test").test(GetDevice);
-            require("./src/xlm/test").test(GetDevice);
         }
     };
 

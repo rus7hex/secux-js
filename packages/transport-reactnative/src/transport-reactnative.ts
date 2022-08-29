@@ -87,45 +87,30 @@ class SecuxReactNativeBLE extends ITransport {
             throw "Device unavailable";
         }
 
-        const handleDisconnect = (err: BleError | null, device: Device) => {
+        this.#device.onDisconnected((err: BleError | null, device: Device) => {
             console.log('in handle disconnect');
             if (!err) {
-                onDisconnectedEvent.remove();
                 this.#OnDisconnected(this.#device);
             } else {
                 throw err;
             }
-        }
-        const onDisconnectedEvent = this.#device.onDisconnected(handleDisconnect);
+        });
 
 
-        await this.#device.discoverAllServicesAndCharacteristics();
-        const { service, uuid } = findDeviceType(await this.#device.services());
-        const characteristics = await service.characteristics();
-        this.#reader = characteristics.find(c => c.uuid === uuid.TX);
-        if (!this.#reader) throw "Cannot find NUS_TX_CHARACTERISTIC_UUID";
-        this.#writer = characteristics.find(c => c.uuid === uuid.RX);
-        if (!this.#writer) throw "Cannot find NUS_RX_CHARACTERISTIC_UUID";
-
+        const uuid = await this.#setupGattService();
         this.#type = uuid.TYPE;
         this.packetSize = uuid.PACKET;
         this.version = uuid.PROTOCOL;
 
-        this.#reader.monitor((error, c) => {
-            if (error) {
-                console.log('error in notify', error);
-            }
-            else {
-                let value = c?.value;
-                if (!value) return;
-
-                const buf = Buffer.from(value, "base64");
-                this.ReceiveData(buf);
-            }
-        });
+        console.log(`device name: ${this.#device.name}`);
+        console.log(`device type: ${uuid.TYPE}`);
 
         ITransport.deviceType = uuid.TYPE;
-        await this.#setFirmwareVersion();
+
+        if (this.#type === DeviceType.nifty) {
+            await this.#checkPairing();
+            await this.#setFirmwareVersion();
+        }
     }
 
     /**
@@ -157,6 +142,8 @@ class SecuxReactNativeBLE extends ITransport {
         if (status !== StatusCode.SUCCESS) {
             throw new TransportStatusError(status);
         }
+
+        await this.#setFirmwareVersion();
 
         return true;
     }
@@ -238,6 +225,31 @@ class SecuxReactNativeBLE extends ITransport {
         return this.#bleManager;
     }
 
+    async #setupGattService() {
+        await this.#device.discoverAllServicesAndCharacteristics();
+        const { service, uuid } = findDeviceType(await this.#device.services());
+        const characteristics = await service.characteristics();
+        this.#reader = characteristics.find(c => c.uuid === uuid.TX);
+        if (!this.#reader) throw "Cannot find NUS_TX_CHARACTERISTIC_UUID";
+        this.#writer = characteristics.find(c => c.uuid === uuid.RX);
+        if (!this.#writer) throw "Cannot find NUS_RX_CHARACTERISTIC_UUID";
+
+        this.#reader.monitor((error, c) => {
+            if (error) {
+                console.log('error in notify', error);
+            }
+            else {
+                let value = c?.value;
+                if (!value) return;
+
+                const buf = Buffer.from(value, "base64");
+                this.ReceiveData(buf);
+            }
+        });
+
+        return uuid;
+    }
+
     async #setFirmwareVersion() {
         const data = SecuxDevice.prepareGetVersion();
         const rsp = await this.Exchange(getBuffer(data));
@@ -247,6 +259,47 @@ class SecuxReactNativeBLE extends ITransport {
 
         ITransport.mcuVersion = mcuFwVersion;
         ITransport.seVersion = seFwVersion;
+
+        console.log(`mcu version: ${this.#mcuVersion}`);
+        console.log(`se version: ${this.#seVersion}`);
+    }
+
+    async #checkPairing() {
+        const timeout = 120000;
+        const interval = 5000;
+
+        const payload = Buffer.from([0x70, 0x61, 0x69, 0x72, 0x69, 0x6e, 0x67]);
+        const echoTest = async () => {
+            const data = Buffer.from([0x80 + 2 + payload.length, 0xf8, 0x08, ...payload]);
+            await this.Write(data);
+
+            let rsp = await this.Read();
+            while (!rsp) {
+                rsp = await this.Read();
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+
+            return rsp.slice(2);
+        };
+
+        for (let i = 0; i < timeout / interval; i++) {
+            // re-connect
+            if (!await this.#device.isConnected()) {
+                await this.#device.connect();
+                await this.#setupGattService();
+            }
+
+            try {
+                const rsp: any = await Promise.race([
+                    echoTest(),
+                    new Promise((resolve) => setTimeout(resolve, interval))
+                ]);
+
+                if (rsp?.equals(payload)) return;
+            } catch (e) { console.log(e); /* still at pairing state */ }
+        }
+
+        throw Error("bluetooth pairing error");
     }
 }
 
