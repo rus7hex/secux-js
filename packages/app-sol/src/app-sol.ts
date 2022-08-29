@@ -28,12 +28,16 @@ import {
     ow_SeedOption, ow_txDetail, SeedOption, txDetail
 } from "./interface";
 import { Transaction } from "./transaction";
-import { loadPlugin, Logger, Signature } from "@secux/utility";
+import { checkFWVersion, loadPlugin, Logger, Signature } from "@secux/utility";
 import { createProgramAccount, createWithSeed, isOnCurve, toPublickey } from "./utils";
 import { TokenInstruction } from "./instruction";
 import { Action } from "./action";
 const logger = Logger?.child({ id: "app-sol" });
-
+const mcu = {
+    crypto: "2.23",
+    nifty: "2.05.0"
+};
+const se = "1.93";
 
 /**
  * SOL package for SecuX device
@@ -133,6 +137,8 @@ export class SecuxSOL {
      * @returns {prepared} prepared object
      */
     static prepareSign(feePayer: string, content: txDetail): { commandData: communicationData, serialized: communicationData } {
+        checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
+        checkFWVersion("se", se, ITransport.seVersion);
         ow(feePayer, ow_address);
         ow(content, ow_txDetail);
 
@@ -168,7 +174,7 @@ export class SecuxSOL {
             let check = checks[owner.account];
             if (check === undefined) continue;
             if (!!check) continue;
-            
+
             checks[owner.account] = owner.path;
             paths.push(owner.path);
         }
@@ -180,7 +186,7 @@ export class SecuxSOL {
         const commandData = SecuxTransactionTool.signRawTransactionList(
             paths, txs, undefined,
             {
-                tp: TransactionType.NORMAL,
+                tp: content.txType ?? TransactionType.NORMAL,
                 curve: EllipticCurve.ED25519
             }
         );

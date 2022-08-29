@@ -20,6 +20,7 @@ limitations under the License.
 import ow from "ow";
 import { ow_checkBufferLength, owTool } from "@secux/utility";
 import { StakeInstruction, SystemInstruction, TokenInstruction } from "./instruction";
+import { ow_TransactionType, TransactionType } from "@secux/protocol-transaction/lib/interface";
 
 
 export const ow_address = owTool.base58String.minLength(43).maxLength(44);
@@ -43,7 +44,7 @@ export const ow_ATAOption = ow.object.exactShape({
 export type SeedOption = {
     seed: string,
     programId: Base58String
-}
+};
 
 export const ow_SeedOption = ow.object.exactShape({
     seed: ow.string.nonEmpty,
@@ -85,7 +86,7 @@ export enum InstructionType {
 export type BuiltinInstruction = {
     type: InstructionType,
     params: any
-}
+};
 
 export const ow_builtinInstruction = ow.object.partialShape({
     type: ow.string.oneOf(Object.values(InstructionType)),
@@ -95,7 +96,8 @@ export type txDetail = {
     recentBlockhash: Base58String,
     instructions: Array<Instruction | BuiltinInstruction>,
     ownerships: Array<{ path: string, account: Base58String }>,
-}
+    txType?: TransactionType
+};
 
 export const ow_txDetail = ow.object.partialShape({
     recentBlockhash: ow_address,
@@ -103,7 +105,8 @@ export const ow_txDetail = ow.object.partialShape({
     ownerships: ow.array.ofType(ow.object.partialShape({
         path: ow_path,
         account: ow_address
-    })).nonEmpty
+    })).nonEmpty,
+    txType: ow.any(ow.undefined, ow_TransactionType)
 });
 
 export const InstructionMap: { [type: string]: Function } = {}

@@ -1,4 +1,5 @@
 const { SecuxSOL } = require("@secux/app-sol");
+const { TransactionType } = require("@secux/protocol-transaction/lib/interface");
 const { assert } = require("chai");
 const { mnemonicToSeedSync } = require("bip39");
 const { derivePath } = require("ed25519-hd-key");
@@ -273,7 +274,8 @@ export function test(GetDevice) {
                     ],
                     ownerships: [
                         { path: path_from, account: from.toString() }
-                    ]
+                    ],
+                    txType: TransactionType.NFT
                 });
 
                 const rsp = await GetDevice().Exchange(commandData);
@@ -298,7 +300,8 @@ export function test(GetDevice) {
                     ],
                     ownerships: [
                         { path: path_from, account: from.toString() }
-                    ]
+                    ],
+                    txType: TransactionType.NFT
                 });
 
                 assert.equal(raw_tx, signed);

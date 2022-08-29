@@ -1,6 +1,6 @@
 {
   "name": "@secux/app-sol",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "SecuX Hardware Wallet SOL API",
   "keywords": [
     "secux",
@@ -38,13 +38,13 @@
   },
   "dependencies": {
     "@secux/protocol-transaction": "^3.0.0",
-    "@secux/utility": "^3.0.6",
     "@solana/buffer-layout": "^4.0.0",
     "hash.js": "^1.1.7",
     "tweetnacl": "^1.0.3"
   },
   "peerDependencies": {
-    "@secux/transport": "^3.2.0"
+    "@secux/transport": "^3.3.1",
+    "@secux/utility": "^3.0.10"
   },
   "devDependencies": {
     "@solana/spl-token": "^0.2.0",
