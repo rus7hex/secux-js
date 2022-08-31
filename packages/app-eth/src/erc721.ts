@@ -56,7 +56,7 @@ export class ERC721 {
             data
         });
 
-        return prepareSign(path, builder, false, TransactionType.NFT);
+        return prepareSign(path, builder, TransactionType.NFT);
     }
 
     /**
@@ -80,7 +80,7 @@ export class ERC721 {
             data
         });
 
-        return prepareSign(path, builder, false, TransactionType.NFT);
+        return prepareSign(path, builder, TransactionType.NFT);
     }
 
     /**
@@ -104,7 +104,7 @@ export class ERC721 {
             data
         });
 
-        return prepareSign(path, builder, false, TransactionType.NFT);
+        return prepareSign(path, builder, TransactionType.NFT);
     }
 }
 

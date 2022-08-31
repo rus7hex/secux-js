@@ -1,6 +1,6 @@
 {
   "name": "@secux/app-eth",
-  "version": "3.0.10",
+  "version": "3.0.11",
   "description": "SecuX Hardware Wallet ETH API",
   "keywords": [
     "secux",

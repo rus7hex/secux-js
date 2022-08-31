@@ -144,9 +144,8 @@ class SecuxETH {
         const buf = getBuffer(serialized);
         logger?.debug(`- prepareSignSerialized\ninput serialized tx: ${buf.toString("hex")}`);
         const builder = ETHTransactionBuilder.deserialize(buf);
-        const isBlindSign = builder.tx.data?.length > 0;
 
-        return prepareSign(path, builder, isBlindSign).commandData;
+        return prepareSign(path, builder).commandData;
     }
 
     /**
@@ -189,7 +188,7 @@ class SecuxETH {
 
         const builder = getBuilder(content);
 
-        return prepareSign(path, builder, false);
+        return prepareSign(path, builder);
     }
 
     /**
@@ -228,7 +227,7 @@ class SecuxETH {
 
         const builder = getBuilder(content);
 
-        return prepareSign(path, builder, false);
+        return prepareSign(path, builder);
     }
 
     /**
@@ -306,7 +305,7 @@ class SecuxETH {
         ow(content, ow.any(ow_tx155, ow_tx1559));
 
         const builder = getBuilder(content);
-        return prepareSign(path, builder, true);
+        return prepareSign(path, builder);
     }
 
     static async getAddress(this: ITransport, path: string) {
@@ -418,7 +417,7 @@ function toChecksumAddress(address: string) {
     return ret;
 }
 
-export function prepareSign(path: string, builder: ETHTransactionBuilder, isBlind: boolean, tp?: TransactionType): { commandData: communicationData, rawTx: communicationData } {
+export function prepareSign(path: string, builder: ETHTransactionBuilder, tp?: TransactionType): { commandData: communicationData, rawTx: communicationData } {
     checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
     ow(path, ow_path);
 
@@ -428,6 +427,7 @@ export function prepareSign(path: string, builder: ETHTransactionBuilder, isBlin
         else
             tp = TransactionType.NORMAL;
     }
+    const isBlind = isBlindSign(builder.tx.data);
     if (isBlind) tp = TransactionType.NORMAL;
 
     const option = {
@@ -460,6 +460,27 @@ function validatePublickey(data: string | Buffer) {
     }
 
     return pk;
+}
+
+function isBlindSign(data: string | Buffer) {
+    const abiSupported = [
+        { identify: "a9059cbb", length: 136 },  // transfer
+        { identify: "23b872dd", length: 200 },  // transferFrom
+        { identify: "095ea7b3", length: 136 },  // approve
+        { identify: "42842e0e", length: 200 },  // safeTransferFrom
+    ];
+
+    const abiData = Buffer.isBuffer(data) ? data.toString("hex") : data?.replace(/^0x/, '');
+    if (!abiData) return false;
+
+    for (const abi of abiSupported) {
+        if (!abiData.startsWith(abi.identify)) continue;
+        if (abiData.length !== abi.length) continue;
+
+        return false;
+    }
+
+    return true;
 }
 
 

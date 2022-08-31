@@ -47,7 +47,7 @@ export class ERC20 {
             data
         });
 
-        return prepareSign(path, builder, false, TransactionType.TOKEN);
+        return prepareSign(path, builder, TransactionType.TOKEN);
     }
 
     /**
@@ -71,7 +71,7 @@ export class ERC20 {
             data
         });
 
-        return prepareSign(path, builder, false, TransactionType.TOKEN);
+        return prepareSign(path, builder, TransactionType.TOKEN);
     }
 
     /**
@@ -95,7 +95,7 @@ export class ERC20 {
             data
         });
 
-        return prepareSign(path, builder, false, TransactionType.TOKEN);
+        return prepareSign(path, builder, TransactionType.TOKEN);
     }
 }
 

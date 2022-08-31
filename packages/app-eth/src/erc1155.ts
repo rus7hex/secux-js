@@ -53,7 +53,7 @@ export class ERC1155 {
             data
         });
 
-        return prepareSign(path, builder, false);
+        return prepareSign(path, builder);
     }
 
     /**
@@ -93,7 +93,7 @@ export class ERC1155 {
             data
         });
 
-        return prepareSign(path, builder, true);
+        return prepareSign(path, builder);
     }
 }
 
