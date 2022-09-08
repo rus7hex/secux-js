@@ -25,7 +25,7 @@ const validate = require("wallet-address-validator").validate;
 export type PrefixedHexString = string;
 export type JsonString = string;
 
-export const ow_address = ow.string.matches(/^0x[0-9A-fa-f]{40}$/)
+export const ow_address = ow.string.matches(/^0x[0-9A-Fa-f]{40}$/)
     .validate(x => {
         return {
             validator: validate(x, "ETH"),
