@@ -207,7 +207,6 @@ abstract class ITransport {
             L1 = getBuffer(to_L1_APDU(data));
         }
         this.#resolver.Sent = L1;
-        const doTimeout = !disableTimeout(this.#resolver.cla, this.#resolver.ins);
 
         const L0 = this.#appendL0(L1);
         const packetBufferArray = this.#buildPacketBuffer(L0);
@@ -216,7 +215,7 @@ abstract class ITransport {
         }
 
         let isTerminated = false;
-        if (doTimeout) {
+        if (!this.#disableTimeout()) {
             setTimeout(() => {
                 isTerminated = true;
             }, this.#timeout);
@@ -290,6 +289,31 @@ abstract class ITransport {
 
         return L0;
     }
+
+    #disableTimeout(): boolean {
+        if (this.#resolver.cla === 0x70) {
+            switch (this.#resolver.ins) {
+                case 0xa3:
+                case 0xa4:
+                case 0xa5:
+                case 0xa6:
+                case 0x86:
+                    return true;
+            }
+        }
+
+        if (this.version === ITransport.PROTOCOLv2) {
+            if (this.#resolver.Sent[0] === 0xf8) {
+                switch (this.#resolver.Sent[1]) {
+                    // delete file from gallery
+                    case 0x04:
+                        return this.#resolver.Sent[2] === 0x01;
+                }
+            }
+        }
+
+        return false;
+    }
 }
 
 
@@ -344,19 +368,4 @@ function getModule(info: typeof supported_coin[0]) {
     if (!m) throw Error(`Cannot find plugin, please install npm package "${info.npm}" and import into your code.`);
 
     return m;
-}
-
-function disableTimeout(cla: number, ins: number): boolean {
-    if (cla === 0x70) {
-        switch (ins) {
-            case 0xa3:
-            case 0xa4:
-            case 0xa5:
-            case 0xa6:
-            case 0x86:
-                return true;
-        }
-    }
-
-    return false;
 }

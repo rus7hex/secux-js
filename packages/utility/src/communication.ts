@@ -89,17 +89,22 @@ export class TransportStatusError extends Error {
     #message: string;
     #statusCode: number;
     #statusText: string;
+    #version: number;
 
-    constructor(code: number) {
+    constructor(code: number, version: number = 1) {
         super();
 
-        if (code in StatusCode) {
-            this.#statusText = StatusCode[code];
-        }
-        else {
-            this.#statusText = "UNKNOWN_ERROR";
-        }
+        this.#version = version;
+        switch (version) {
+            case 2:
+                this.#statusText = StatusCodeV2[code];
+                break;
 
+            default:
+                this.#statusText = StatusCode[code];
+                break;
+        }
+        this.#statusText = this.#statusText ?? "UNKNOWN_ERROR";
         this.#statusCode = code;
         this.#message = `[SecuX device] ${this.#statusText} (0x${code.toString(16)})`;
     }
@@ -108,6 +113,7 @@ export class TransportStatusError extends Error {
     get message() { return this.#message; }
     get statusCode() { return this.#statusCode; }
     get statusText() { return this.#statusText; }
+    get version() { return this.#version; }
 }
 
 
@@ -126,4 +132,17 @@ export enum StatusCode {
     DATA_ERROR = 0x5001,
     CLA_ERROR = 0x5002,
     INS_ERROR = 0x5003
+}
+
+export enum StatusCodeV2 {
+    OK,
+    NO_LEADING_PACKET,
+    COMMAND_OVERLAY,
+    INVALID_COMMAND,
+    INCORRENT_PARAMETER_SIZE,
+    INVALID_PARAMETER_VALUE,
+    NOT_FOUND,
+    ALREADY_EXIST,
+    IO_ERROR,
+    NOT_SUPPORT
 }

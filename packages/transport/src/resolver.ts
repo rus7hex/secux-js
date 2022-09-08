@@ -18,7 +18,7 @@ limitations under the License.
 
 
 import { Logger } from "@secux/utility";
-import { StatusCode, TransportStatusError } from "@secux/utility/lib/communication";
+import { StatusCode, StatusCodeV2, TransportStatusError } from "@secux/utility/lib/communication";
 import { IAPDUResponse, ProtocolV2 } from "./interface";
 const logger = Logger?.child({ id: "resolver" });
 
@@ -260,7 +260,9 @@ export class BaseResolverV2 extends IResolver {
         try {
             const buf = this.unpack(this.DataSource);
             return { data: buf, response: this.toResponse(buf), isNotify: false };
-        } catch (error: any) {
+        }
+        catch (error: any) {
+            if (error instanceof TransportStatusError) throw error;
             logger?.debug(error.message);
         }
 
@@ -269,11 +271,20 @@ export class BaseResolverV2 extends IResolver {
 
     toResponse(data: Buffer): IAPDUResponse {
         const condition = data[0];
+        if (condition !== StatusCodeV2.OK) throw new TransportStatusError(condition, 2);
+
+        if (this.Sent.length > 0) {
+            const cmd = this.Sent[1].toString(16);
+            const cmd_recieved = data[1].toString(16);
+            if (cmd !== cmd_recieved) {
+                throw Error(`TransferError: expect response of command 0x${cmd}, but got 0x${cmd_recieved}`);
+            }
+        }
 
         return {
             dataLength: data.length,
             data,
-            status: (condition === 0x00) ? StatusCode.SUCCESS : StatusCode.DATA_ERROR
+            status: StatusCode.SUCCESS
         }
     }
 

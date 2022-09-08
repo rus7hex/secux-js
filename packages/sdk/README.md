@@ -1,6 +1,6 @@
 [![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lerna.js.org/)
-[![view on npm](https://badgen.net/npm/v/secux-sdk)](https://www.npmjs.com/package/secux-sdk)
-[![npm module downloads](https://badgen.net/npm/dt/secux-sdk)](https://www.npmjs.org/package/secux-sdk)
+[![view on npm](https://badgen.net/npm/v/@secux/js-sdk)](https://www.npmjs.com/package/@secux/js-sdk)
+[![npm module downloads](https://badgen.net/npm/dt/@secux/js-sdk)](https://www.npmjs.org/package/@secux/js-sdk)
 
 # `@secux/js-sdk`
 
