@@ -134,7 +134,7 @@ class ETHTransactionBuilder {
             }
         }
         const gasLimit = getValue(tx.gasLimit);
-        if (gasLimit.lt(estimatedGas)) throw Error(`Minimal gas is ${estimatedGas}, but got ${gasLimit.toString()}.`);
+        if (gasLimit.lt(estimatedGas)) console.warn(`Minimal gas is ${estimatedGas}, but got ${gasLimit.toString()}.`);
     }
 
     /**
