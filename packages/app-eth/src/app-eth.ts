@@ -305,7 +305,17 @@ class SecuxETH {
         ow(content, ow.any(ow_tx155, ow_tx1559));
 
         const builder = getBuilder(content);
-        return prepareSign(path, builder);
+        const chainId = builder.chainId || 1;
+        const data = SecuxTransactionTool.signTransaction(path, builder.serialize(true), {
+            tp: TransactionType.NORMAL,
+            curve: EllipticCurve.SECP256K1,
+            chainId: (chainId > 0xffff) ? 0xffff : chainId
+        });
+
+        return wrapResult({
+            commandData: data,
+            rawTx: toCommunicationData(builder.serialize())
+        });
     }
 
     static async getAddress(this: ITransport, path: string) {
@@ -468,6 +478,7 @@ function isBlindSign(data: string | Buffer) {
         { identify: "23b872dd", length: 200 },  // transferFrom
         { identify: "095ea7b3", length: 136 },  // approve
         { identify: "42842e0e", length: 200 },  // safeTransferFrom
+        { identify: "f242432a", length: 392 },  // safeTransferFrom with empty Data field
     ];
 
     const abiData = Buffer.isBuffer(data) ? data.toString("hex") : data?.replace(/^0x/, '');

@@ -23,6 +23,7 @@ import ow from "ow";
 import { baseData, ow_address, ow_baseData, ow_hexString32, PrefixedHexString } from "./interface";
 import { getBuilder } from "./transaction";
 import { owTool } from "@secux/utility";
+import { TransactionType } from "@secux/protocol-transaction/lib/interface";
 
 
 export class ERC1155 {
@@ -53,7 +54,7 @@ export class ERC1155 {
             data
         });
 
-        return prepareSign(path, builder);
+        return prepareSign(path, builder, TransactionType.NFT);
     }
 
     /**
@@ -93,7 +94,7 @@ export class ERC1155 {
             data
         });
 
-        return prepareSign(path, builder);
+        return prepareSign(path, builder, TransactionType.NFT);
     }
 }
 
