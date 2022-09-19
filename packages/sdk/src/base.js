@@ -61,7 +61,7 @@ if (!global["@secux/transport"]) {
 export { isSupportedCoin, toExtenededPublicKey, Signature } from "@secux/utility";
 export { to_L1_APDU } from "@secux/utility/lib/communication";
 export { SecuxTransactionTool } from "@secux/protocol-transaction";
-export { SecuxDevice } from "@secux/protocol-device";
+export { SecuxDevice, SecuxDeviceNifty } from "@secux/protocol-device";
 export { SecuxScreenDevice } from "@secux/protocol-device/lib/protocol-screendevice";
 export { Buffer } from "buffer/";
 

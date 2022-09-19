@@ -22,6 +22,8 @@ import { owTool } from "@secux/utility";
 
 
 export const ow_AccountPath = ow.string.matches(/^m(\/\d+'){3}/);
+const ow_accountName = ow.string.matches(/^[a-zA-Z0-9._-]+(\s+[a-zA-Z0-9._-]+)*$/).maxLength(16);
+export const ow_chainId = ow.any(ow.number.not.negative, owTool.numberString, owTool.prefixedhexString);
 
 export type VersionInfo = {
     transportVersion: number
@@ -59,7 +61,7 @@ export type AddressOption = {
 
 export const ow_AddressOption = ow.object.exactShape({
     needToConfirm: ow.optional.boolean,
-    chainId: ow.optional.number.inRange(0, 0xffff)
+    chainId: ow.any(ow.undefined, ow_chainId)
 });
 
 export type StatusCallback = (status: number) => void;
@@ -67,38 +69,36 @@ export type StatusCallback = (status: number) => void;
 export type AccountInfo = {
     name: string,
     path: string,
-    chainId: number | 0,
+    chainId: number | string | undefined,
     balance: string,
     contract?: string,
-    decimal?: number
+    decimal?: number,
 }
-
-const ow_accountName = ow.string.matches(/^[a-zA-Z0-9._-]+(\s+[a-zA-Z0-9._-]+)*$/).maxLength(16);
 
 export const ow_AccountNormal = ow.object.exactShape({
     name: ow_accountName,
     path: ow_AccountPath,
-    chainId: ow.optional.number.not.negative,
+    chainId: ow.any(ow.undefined, ow_chainId),
     balance: ow.string,
 });
 
 export const ow_AccountToken = ow.object.exactShape({
     name: ow_accountName,
     path: ow_AccountPath,
-    chainId: ow.optional.number.not.negative,
+    chainId: ow.any(ow.undefined, ow_chainId),
     balance: ow.string,
     contract: owTool.hashString,
-    decimal: ow.number
+    decimal: ow.number,
 });
 
 export type DeleteOption = {
     contract?: string,
-    chainId: number
+    chainId: number | string
 };
 
 export const ow_DeleteOption = ow.object.exactShape({
     contract: ow.any(ow.undefined, owTool.hashString),
-    chainId: ow.number.not.negative
+    chainId: ow_chainId
 });
 
 export enum FileMode {

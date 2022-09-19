@@ -1,7 +1,7 @@
 const { SecuxDevice, SecuxDeviceNifty } = require("@secux/protocol-device");
 const { SecuxScreenDevice } = require("@secux/protocol-device/lib/protocol-screendevice");
 const { SecuxUpdate } = require("@secux/protocol-device/lib/protocol-update");
-const { AttachmentType } = require("@secux/protocol-device/lib/interface");
+const { AttachmentType, FileDestination } = require("@secux/protocol-device/lib/interface");
 const { WalletStatus, SEMode } = require("@secux/protocol-device/lib/interface");
 const { SecuxWebUSB } = require("@secux/transport-webusb");
 const { assert } = require("chai");
@@ -50,6 +50,17 @@ export function test(GetDevice) {
 
                     assert.fail();
                 });
+
+                delay(2000);
+
+                it('query receiving address of "m/44\'/60\'/0\'/0" with big chainId', async () => {
+                    const buf = SecuxDevice.prepareShowAddress("m/44'/60'/0'/0/0", {
+                        needToConfirm: false,
+                        chainId: 0xffaabbff
+                    });
+                    const rsp = await GetDevice().Exchange(buf);
+                    SecuxDevice.resolveResponse(rsp);
+                }).timeout(10000);
             });
 
             describe('SecuxDevice.getVersion()', () => {
@@ -112,6 +123,10 @@ export function test(GetDevice) {
                 "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",
                 "base64"
             );
+            const img2 = Buffer.from(
+                "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",
+                "base64"
+            )
 
             it("query wallet info", async () => {
                 const data = SecuxDeviceNifty.prepareGetWalletInfo();
@@ -124,7 +139,7 @@ export function test(GetDevice) {
             });
 
             it("sync image to gallery", async () => {
-                const dataList = SecuxDeviceNifty.prepareAddToGallery(
+                const dataList = SecuxDeviceNifty.prepareSendImage(
                     "sandman.jpg",
                     img,
                     {
@@ -138,47 +153,19 @@ export function test(GetDevice) {
                 );
 
                 for (const data of dataList) await GetDevice().Exchange(data);
-            }).timeout(5000);
 
-            it("shuffle gallery", async () => {
-                const data = SecuxDeviceNifty.prepareListGalleryFiles();
-                const rsp = await GetDevice().Exchange(data);
-                const files = SecuxDeviceNifty.resolveFilesInFolder(rsp);
+                const data = SecuxDeviceNifty.prepareFinishSync();
+                await GetDevice().Exchange(data);
+            }).timeout(10000);
 
-                shuffle(files);
-
-                const dataList = SecuxDeviceNifty.prepareUpdateGalleryTable(files);
-                for (const data of dataList) await GetDevice().Exchange(data);
-            }).timeout(30000);
-
-            it("add new NFT that has not synced", async () => {
-                const data = SecuxDeviceNifty.prepareListGalleryFiles();
-                const rsp = await GetDevice().Exchange(data);
-                const files = SecuxDeviceNifty.resolveFilesInFolder(rsp);
-
-                files.push("4nd3rs0n.jpg");
-
-                const dataList = SecuxDeviceNifty.prepareUpdateGalleryTable(files);
-                for (const data of dataList) await GetDevice().Exchange(data);
-            });
-
-            it("hide new NFT that has not synced", async () => {
-                const data = SecuxDeviceNifty.prepareListGalleryFiles();
-                const rsp = await GetDevice().Exchange(data);
-                const files = SecuxDeviceNifty.resolveFilesInFolder(rsp);
-
-                files.shift();
-
-                const dataList = SecuxDeviceNifty.prepareUpdateGalleryTable(files);
-                for (const data of dataList) await GetDevice().Exchange(data);
-            });
-
-            it("remove image from gallery", async () => {
-                const op = SecuxDeviceNifty.prepareRemoveFromGallery("sandman*.jpg");
-                const rsp = await GetDevice().Exchange(op);
-                const deleted = SecuxDeviceNifty.resolveFileRemoved(rsp);
-                console.log(deleted);
-            }).timeout(60000);
+            it("sync image to logo", async () => {
+                await GetDevice().sendImage(
+                    'sandman.jpg',
+                    img,
+                    undefined,
+                    FileDestination.LOGO
+                );
+            }).timeout(10000);
 
             it("list files in gallery", async () => {
                 const data = SecuxDeviceNifty.prepareListGalleryFiles();
@@ -203,6 +190,39 @@ export function test(GetDevice) {
                 await GetDevice().Exchange(data);
             });
 
+            it("shuffle gallery", async () => {
+                const files = await GetDevice().listGalleryFiles();
+                shuffle(files);
+
+                await GetDevice().updateGalleryTable(files);
+            })
+
+            it("add new NFT that has not synced", async () => {
+                const files = await GetDevice().listGalleryFiles();
+                files.push("4nd3rs0n.jpg");
+
+                await GetDevice().updateGalleryTable(files);
+            });
+
+            it("hide new NFT that has not synced", async () => {
+                const files = await GetDevice().listGalleryFiles();
+                files.shift();
+
+                await GetDevice().updateGalleryTable(files);
+            });
+
+            it("remove image from gallery", async () => {
+                const op = SecuxDeviceNifty.prepareRemoveFromGallery("*");
+                const rsp = await GetDevice().Exchange(op);
+                const deleted = SecuxDeviceNifty.resolveFileRemoved(rsp);
+                console.log(deleted);
+            }).timeout(600000);
+
+            it("update profile image", async () => {
+                const dataList = SecuxDeviceNifty.prepareUpdateProfileImage(img2);
+                for (const data of dataList) await GetDevice().Exchange(data);
+            }).timeout(10000);
+
             it("set wallet name", async () => {
                 const data = SecuxDeviceNifty.prepareSetWalletName("n0sr3dn4");
                 const rsp = await GetDevice().Exchange(data);
@@ -210,7 +230,7 @@ export function test(GetDevice) {
             });
 
             it("reboot device", async () => {
-                const data = SecuxDeviceNifty.prepareRestart();
+                const data = SecuxDeviceNifty.prepareReboot();
                 const rsp = await GetDevice().Exchange(data);
                 console.log(rsp);
             });
@@ -406,9 +426,10 @@ export function test(GetDevice) {
                 delay(10000);
 
                 it("can query eth accounts", async () => {
-                    const list = await SecuxScreenDevice.QueryAccountInfoByCoin(GetDevice(), 60, 1);
+                    const list = await GetDevice().queryAccountInfoByCoin(60);
                     for (const info of list) {
                         console.log(`check account of [${info.name}][${info.balance}]`);
+                        console.log(info);
                     }
                 });
 

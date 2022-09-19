@@ -1,6 +1,6 @@
 {
   "name": "@secux/protocol-device",
-  "version": "3.0.6",
+  "version": "3.1.0",
   "description": "SecuX Hardware Wallet device protocol API",
   "keywords": [
     "secux",
@@ -32,7 +32,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@secux/utility": "^3.0.6"
+    "@secux/utility": "^3.0.14"
   },
   "devDependencies": {
     "@secux/transport": "file:../transport",

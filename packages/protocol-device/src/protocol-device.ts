@@ -17,7 +17,9 @@ limitations under the License.
 */
 
 
-import { BigIntToBuffer, buildPathBuffer, isSupportedCoin, Logger, owTool } from "@secux/utility";
+import {
+    BigIntToBuffer, buildPathBuffer, checkFWVersion, FirmwareType, isSupportedCoin, Logger, owTool
+} from "@secux/utility";
 import {
     communicationData, getBuffer, ow_communicationData, Send, StatusCode, toAPDUResponse,
     toCommunicationData, TransportStatusError, wrapResult
@@ -26,6 +28,7 @@ import {
     AddressOption, VersionInfo, WalletInfo, ow_AddressOption, ow_FileMode, FileMode, FileInfo,
     ow_FileInfo, ContentKey, FileDestination, FileType, FileAttachment, ow_FileAttachment, ow_filename
 } from "./interface";
+import { BigNumber } from 'bignumber.js';
 import ow from "ow";
 export { SecuxDevice, SecuxDeviceNifty, VersionInfo, WalletInfo, AddressOption };
 const logger = Logger?.child({ id: "protocol" });
@@ -143,10 +146,21 @@ class SecuxDevice {
         const transactionType = 0;  // Note: ignore in this command
         const compressed = true; // always compressed
 
-        let data = Buffer.alloc(4);
-        data.writeUInt16LE(transactionType, 0);
-        data.writeUInt16LE(option?.chainId ?? 0, 2);
-        data = Buffer.concat([data, buildPathBuffer(path).pathBuffer]);
+        let chainId = new BigNumber(option?.chainId ?? 0);
+        const append: Array<number> = [];
+        if (chainId.gte(0xffff)) {
+            checkFwForUint64ChainId();
+
+            chainId = new BigNumber(0xffff);
+            append.push(...BigIntToBuffer(option!.chainId!, 8, true));
+        }
+
+        const data = Buffer.from([
+            transactionType, 0x00,
+            ...BigIntToBuffer(chainId.toNumber(), 2, true),
+            ...buildPathBuffer(path).pathBuffer,
+            ...append
+        ]);
 
         const p1 = (compressed) ? 0x01 : 0x00;
         const p2 = (option?.needToConfirm ?? true) ? 0x00 : 0x01;
@@ -175,6 +189,8 @@ class SecuxDeviceNifty {
     static #filenameSize = 48;
 
     static prepareGetWalletInfo(): communicationData {
+        commandForNifty();
+
         const data = Buffer.from([0xf8, 0x00, 0x00, 0x00]);
         logger?.debug(`send data: ${data.toString("hex")}`);
 
@@ -218,6 +234,8 @@ class SecuxDeviceNifty {
     }
 
     static prepareSetWalletName(name: string): communicationData {
+        commandForNifty();
+
         const nameBuf = Buffer.from(name, "utf8");
         ow(name, ow.string.nonEmpty.is(_ => nameBuf.length < 13));
 
@@ -231,7 +249,9 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
-    static prepareRestart(): communicationData {
+    static prepareReboot(): communicationData {
+        commandForNifty();
+
         const data = Buffer.from([0xf8, 0x0a, 0x00, 0x00]);
         logger?.debug(`send data: ${data.toString("hex")}`);
 
@@ -239,6 +259,8 @@ class SecuxDeviceNifty {
     }
 
     static prepareFileOperation(mode: FileMode, info: FileInfo): communicationData {
+        commandForNifty();
+
         ow(mode, ow_FileMode);
         ow(info, ow_FileInfo);
 
@@ -286,10 +308,10 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
-    static prepareAddToGallery(filename: string, file: communicationData, attachment: FileAttachment, destination = FileDestination.GALLERY): Array<communicationData> {
+    static prepareSendImage(filename: string, file: communicationData, attachment?: FileAttachment, destination = FileDestination.GALLERY): Array<communicationData> {
         ow(filename, ow.string.nonEmpty);
         ow(file, ow_communicationData);
-        ow(attachment, ow_FileAttachment);
+        ow(attachment, ow.any(ow.undefined, ow_FileAttachment));
 
         const supported = ["png", "jpg", "jpeg"];
         const extract = /(.*)\.(\w+)$/.exec(filename);
@@ -322,10 +344,21 @@ class SecuxDeviceNifty {
     }
 
     static prepareFinishSync(): communicationData {
+        commandForNifty();
+
         const data = Buffer.from([0xf8, 0x03, 0x01, 0x00]);
         logger?.debug(`send data: ${data.toString("hex")}`);
 
         return toCommunicationData(data);
+    }
+
+    static prepareUpdateProfileImage(file: communicationData): Array<communicationData> {
+        return SecuxDeviceNifty.prepareSendImage(
+            "/my_gallery.jpg",
+            file,
+            undefined,
+            FileDestination.SDCARD
+        );
     }
 
     static prepareRemoveFromGallery(filename: string): communicationData {
@@ -395,7 +428,7 @@ class SecuxDeviceNifty {
     static prepareUpdateGalleryTable(fileList: Array<string>, destination = FileDestination.GALLERY): Array<communicationData> {
         ow(fileList, ow.array.maxLength(200).ofType(ow_filename));
 
-        const table = Buffer.from(fileList.map(x => `${x}\n`).join(), "utf8");
+        const table = Buffer.from(fileList.map(x => `${x}\n`).join(''), "utf8");
         const operation = SecuxDeviceNifty.prepareFileOperation(
             FileMode.ADD,
             {
@@ -426,6 +459,8 @@ class SecuxDeviceNifty {
     }
 
     static prepareSendFile(file: communicationData): Array<communicationData> {
+        commandForNifty();
+
         ow(file, ow_communicationData);
 
         const commands: Array<Buffer> = [];
@@ -448,4 +483,206 @@ class SecuxDeviceNifty {
 
         return commands.map(x => toCommunicationData(x));
     }
+}
+
+const UInt64ChainId = {
+    crypto: "2.24",
+}
+export function checkFwForUint64ChainId() {
+    let ITransport;
+    try {
+        ITransport = require("@secux/transport").ITransport;
+    } catch (error) {
+        // Transport layer not found
+        return;
+    }
+    if (!ITransport) return;
+
+    //@ts-ignore
+    checkFWVersion(FirmwareType.mcu, UInt64ChainId[ITransport.deviceType], ITransport.mcuVersion);
+}
+
+function commandForNifty() {
+    let ITransport;
+    try {
+        ITransport = require("@secux/transport").ITransport;
+    } catch (error) {
+        // Transport layer not found
+        return;
+    }
+    if (!ITransport) return;
+
+    const { DeviceType } = require("@secux/transport/lib/interface");
+    if (ITransport.deviceType !== DeviceType.nifty) {
+        throw Error(`${ITransport.deviceType} wallet does not support this command.`);
+    }
+}
+
+try {
+    const { ITransport } = require("@secux/transport");
+    const { DeviceType } = require("@secux/transport/lib/interface");
+
+    Object.defineProperties(ITransport.prototype, {
+        getVersion: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]): Promise<VersionInfo> {
+                //@ts-ignore
+                const buf = SecuxDevice.prepareGetVersion(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxDevice.resolveVersion(rsp);
+            }
+        },
+
+        getWalletInfo: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                if (this.DeviceType === DeviceType.nifty) {
+                    //@ts-ignore
+                    const buf = SecuxDeviceNifty.prepareGetWalletInfo(...args);
+                    const rsp = await this.Exchange(getBuffer(buf));
+                    return SecuxDeviceNifty.resolveWalletInfo(rsp);
+                }
+
+                //@ts-ignore
+                const buf = SecuxDevice.prepareGetWalletInfo(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxDevice.resolveWalletInfo(rsp);
+            }
+        },
+
+        showAddress: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDevice.prepareShowAddress(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        },
+
+        setWalletName: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDeviceNifty.prepareSetWalletName(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        },
+
+        reboot: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDeviceNifty.prepareReboot(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        },
+
+        sendImage: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const bufList = SecuxDeviceNifty.prepareSendImage(...args);
+                for (const buf of bufList) {
+                    await this.Exchange(getBuffer(buf));
+                }
+            }
+        },
+
+        removeFromGallery: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDeviceNifty.prepareRemoveFromGallery(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxDeviceNifty.resolveFileRemoved(rsp);
+            }
+        },
+
+        finishSync: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDeviceNifty.prepareFinishSync(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        },
+
+        listGalleryFiles: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDeviceNifty.prepareListGalleryFiles(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+
+                let fileList: string[] = [];
+                let { files, resume } = SecuxDeviceNifty.resolveFilesInFolder(rsp);
+                while (resume) {
+                    fileList = fileList.concat(files);
+
+                    const rsp = await this.Exchange(resume);
+                    ({ files, resume } = SecuxDeviceNifty.resolveFilesInFolder(rsp));
+                }
+                fileList = fileList.concat(files);
+
+                return fileList;
+            }
+        },
+
+        updateProfileImage: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const dataList = SecuxDeviceNifty.prepareUpdateProfileImage(...args);
+                for (const buf of dataList) {
+                    await this.Exchange(getBuffer(buf));
+                }
+            }
+        },
+
+        updateGalleryTable: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const bufList = SecuxDeviceNifty.prepareUpdateGalleryTable(...args);
+                for (const buf of bufList) {
+                    await this.Exchange(getBuffer(buf));
+                }
+            }
+        },
+
+        resetGalleryTable: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxDeviceNifty.prepareResetGalleryTable(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        }
+    });
+} catch (error) {
+    // skip plugin injection
 }

@@ -175,17 +175,46 @@ export function loadPlugin(plugin: Function, name: string) {
     }
 }
 
+export enum FirmwareType {
+    mcu = "mcu",
+    se = "se"
+}
+
+export class FirmwareError extends Error {
+    #type: FirmwareType;
+    #current: string;
+    #restrict: string;
+
+    constructor(type: string, restrict: string, current: string) {
+        super();
+
+        //@ts-ignore
+        this.#type = FirmwareType[type];
+        this.#restrict = restrict;
+        this.#current = current;
+        this.message = `${this.#type} firmware need update, version "${restrict}" needed, but got "${current}"`;
+    }
+
+    get type() { return this.#type; }
+    get currentVersion() { return this.#current; }
+    get restrictVersion() { return this.#restrict; }
+}
+
 export function checkFWVersion(type: string, restrict: string, current: string) {
     if (!restrict || !current) return;
 
     const r = restrict.split('.').map(x => parseInt(x));
     const c = current.split('.').map(x => parseInt(x));
 
-    for (let i = 0; i < restrict.length; i++) {
+    for (let i = 0; i < r.length - 1; i++) {
         const _r = r[i], _c = c[i];
         if (_r < _c) return;
-        if (_r > _c) throw Error(`${type} firmware need update, version "${restrict}" needed, but got "${current}"`);
+        if (_r > _c) throw new FirmwareError(type, restrict, current);
     }
+
+    const last = r.length - 1;
+    const minor = c[last] + (current.includes(".D.") ? 1 : 0);
+    if (r[last] > minor) throw new FirmwareError(type, restrict, current);
 }
 
 function numbersToRegExp(list: Array<number>): string {

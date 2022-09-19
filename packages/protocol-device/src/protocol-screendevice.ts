@@ -17,16 +17,18 @@ limitations under the License.
 */
 
 
-import { buildPathBuffer, owTool } from "@secux/utility";
+import { BigIntToBuffer, buildPathBuffer, owTool } from "@secux/utility";
 import {
-    communicationData, getBuffer, ow_communicationData, Send, StatusCode, toAPDUResponse, TransportStatusError, wrapResult
+    communicationData, getBuffer, ow_communicationData, Send, StatusCode, toAPDUResponse, TransportStatusError,
+    wrapResult
 } from "@secux/utility/lib/communication";
 import {
-    AccountInfo, DeleteOption, ow_AccountNormal, ow_AccountPath, ow_AccountToken, ow_DeleteOption
+    AccountInfo, DeleteOption, ow_AccountNormal, ow_AccountPath, ow_AccountToken, ow_chainId, ow_DeleteOption
 } from "./interface";
-import { SecuxDevice } from "./protocol-device";
-import { ITransport } from "@secux/transport";
+import { checkFwForUint64ChainId, SecuxDevice } from "./protocol-device";
+import { BigNumber } from 'bignumber.js';
 import ow from "ow";
+
 
 
 /**
@@ -47,42 +49,7 @@ export class SecuxScreenDevice {
      */
     static prepareSetAccount(info: AccountInfo): communicationData {
         ow(info, ow.any(ow_AccountNormal, ow_AccountToken));
-
-
-        const isToken = (info.contract) ? 1 : 0;
-        const tokenBuffer = Buffer.alloc(2);
-        tokenBuffer.writeUInt16LE(isToken);
-
-        const chainIdBuffer = Buffer.alloc(2);
-        chainIdBuffer.writeUInt16LE(info.chainId);
-
-        const balanceBuffer = Buffer.alloc(32);
-        balanceBuffer.write(info.balance, "ascii");
-
-        const nameBuffer = Buffer.alloc(16);
-        nameBuffer.write(info.name, "ascii");
-
-        let data = Buffer.concat([
-            tokenBuffer,
-            chainIdBuffer,
-            buildPathBuffer(info.path, 3).pathBuffer,
-            balanceBuffer,
-            nameBuffer
-        ]);
-
-        if (isToken) {
-            const contractBuffer = Buffer.alloc(42);
-            contractBuffer.write(info.contract!, "ascii");
-
-            const decimalBuffer = Buffer.alloc(1);
-            decimalBuffer.writeInt8(info.decimal!);
-
-            data = Buffer.concat([
-                data,
-                contractBuffer,
-                decimalBuffer
-            ]);
-        }
+        const data = SecuxScreenDevice.#accountData({ ...info, decimal: info.decimal ?? 0 });
 
         return Send(0x70, 0x82, 0, 0, data);
     }
@@ -97,29 +64,11 @@ export class SecuxScreenDevice {
         ow(path, ow_AccountPath);
         ow(option, ow_DeleteOption);
 
-
-        const isToken = (option?.contract) ? 1 : 0;
-        const tokenBuffer = Buffer.alloc(2);
-        tokenBuffer.writeUInt16LE(isToken);
-
-        const chainIdBuffer = Buffer.alloc(2);
-        chainIdBuffer.writeUInt16LE(option.chainId);
-
-        let data = Buffer.concat([
-            tokenBuffer,
-            chainIdBuffer,
-            buildPathBuffer(path, 3).pathBuffer
-        ]);
-
-        if (isToken) {
-            const contractBuffer = Buffer.alloc(42);
-            contractBuffer.write(option.contract!, "ascii");
-
-            data = Buffer.concat([
-                data,
-                contractBuffer
-            ]);
-        }
+        const data = SecuxScreenDevice.#accountData({
+            path,
+            chainId: option.chainId,
+            contract: option.contract
+        });
 
         return Send(0x70, 0x84, 0, 0, data);
     }
@@ -168,14 +117,13 @@ export class SecuxScreenDevice {
      * @returns {object} info
      * @returns {string} info.name
      * @returns {string} info.path
-     * @returns {number} info.chainId
+     * @returns {number|string} info.chainId
      * @returns {string} info.balance
      * @returns {string} [info.contract]
      * @returns {number} [info.decimal]
      */
     static resolveAccountInfo(response: communicationData): AccountInfo {
         ow(response, ow_communicationData);
-
 
         const rsp = toAPDUResponse(getBuffer(response));
         if (rsp.status !== StatusCode.SUCCESS) throw new TransportStatusError(rsp.status);
@@ -188,7 +136,7 @@ export class SecuxScreenDevice {
         const balance = Buffer.from(rsp.data.slice(16, 48).filter(x => x !== 0)).toString("ascii");
         const name = Buffer.from(rsp.data.slice(48, 64).filter(x => x !== 0)).toString("ascii");
 
-        let info: any = {
+        const info: AccountInfo = {
             name,
             path: `m/${purpose}/${coinType}/${account}`,
             chainId,
@@ -200,77 +148,190 @@ export class SecuxScreenDevice {
             info.decimal = rsp.data.readInt8(64 + 42);
         }
 
-        return wrapResult(info);
-    }
+        if (chainId === 0xffff) {
+            const offset = 64 + 42 + 1;
+            // backward compatible
+            info.chainId = 0xffff;
 
-    /**
-     * Query account info from device
-     * @param {ITransport} trans 
-     * @param {QueryObject} query
-     */
-    static async QueryAccountInfo(trans: ITransport, query: QueryObject): Promise<AccountInfo | undefined> {
-        ow(query, ow_QueryObject);
-
-
-        let buf = this.prepareGetAccountSize();
-        let rsp = await trans.Exchange(getBuffer(buf));
-        const size = this.resolveAccountSize(rsp);
-
-        for (let i = 0; i < size; i++) {
-            let buf = this.prepareGetAccountInfo(i);
-            let rsp = await trans.Exchange(getBuffer(buf));
-            const info = this.resolveAccountInfo(rsp);
-
-            if (query.contract && query.contract !== info.contract) continue;
-            if (info.path === query.path && info.chainId === query.chinId) return info;
-        }
-
-        return undefined;
-    }
-
-    /**
-     * Query accounts from device by coin
-     * @param {ITransport} trans 
-     * @param {number} cointype BIP44 defined cointype
-     * @param {number} chainId EIP155, for ethereum ecosystem
-     * @returns 
-     */
-    static async QueryAccountInfoByCoin(trans: ITransport, cointype: number, chainId: number = 0): Promise<Array<AccountInfo>> {
-        ow(cointype, ow.number.not.negative);
-        ow(chainId, ow.optional.number.not.negative);
-
-
-        const list: Array<AccountInfo> = [];
-        let buf = this.prepareGetAccountSize();
-        let rsp = await trans.Exchange(getBuffer(buf));
-        const size = this.resolveAccountSize(rsp);
-
-        for (let i = 0; i < size; i++) {
-            let buf = this.prepareGetAccountInfo(i);
-            let rsp = await trans.Exchange(getBuffer(buf));
-            const info = this.resolveAccountInfo(rsp);
-
-            if (
-                info.chainId === chainId &&
-                info.path.match(RegExp(`^m/[0-9]+[']?/${cointype}[']?/[0-9]+[']?$`))
-            ) {
-                list.push(info);
+            try {
+                const chainId = rsp.data.readBigUInt64LE(offset);
+                console.log(chainId.toString(16));
+                if (chainId !== BigInt(0)) info.chainId = `0x${chainId.toString(16)}`;
+            } catch (error) {
+                // do nothing
             }
         }
 
-        return list;
+        return wrapResult(info);
+    }
+
+    static #accountData(info: {
+        path: string,
+        chainId: number | string | undefined,
+        name?: string,
+        balance?: string,
+        contract?: string,
+        decimal?: number,
+    }): Buffer {
+        const isToken = (info.contract) ? 1 : 0;
+
+        // decimal field is defined only on set account command.
+        const tokenData = new Uint8Array(42 + (info.decimal === undefined ? 0 : 1));
+        if (isToken) {
+            tokenData.set(asciiToArray(info.contract!, 42));
+            if (info.decimal) tokenData[42] = info.decimal;
+        }
+
+        const accountData: Array<number> = [];
+        if (info.name && info.balance) {
+            accountData.push(
+                ...asciiToArray(info.balance, 32),
+                ...asciiToArray(info.name, 16),
+            );
+        }
+
+        const chainId = new BigNumber(info.chainId ?? 0);
+        if (chainId.lte(0xffff)) {
+            return Buffer.from([
+                (info.contract) ? 1 : 0, 0x00,
+                ...BigIntToBuffer(info.chainId ?? 0, 2, true),
+                ...buildPathBuffer(info.path, 3).pathBuffer,
+                ...accountData,
+                ...tokenData,
+            ]);
+        }
+
+        checkFwForUint64ChainId();
+
+        return Buffer.from([
+            (info.contract) ? 1 : 0, 0x00,
+            0xff, 0xff,
+            ...buildPathBuffer(info.path, 3).pathBuffer,
+            ...accountData,
+            ...tokenData,
+            ...BigIntToBuffer(info.chainId!, 8, true)
+        ]);
     }
 }
 
+try {
+    const { ITransport } = require("@secux/transport");
+    const { DeviceType } = require("@secux/transport/lib/interface");
+
+    Object.defineProperties(ITransport.prototype, {
+        setAccount: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                if (ITransport.deviceType === DeviceType.nifty) throw Error("Nifty wallet does not support this command.");
+
+                //@ts-ignore
+                const buf = SecuxScreenDevice.prepareSetAccount(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        },
+
+        deleteAccount: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                if (ITransport.deviceType === DeviceType.nifty) throw Error("Nifty wallet does not support this command.");
+
+                //@ts-ignore
+                const buf = SecuxScreenDevice.prepareDeleteAccount(...args);
+                await this.Exchange(getBuffer(buf));
+            }
+        },
+
+        getAccountSize: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]): Promise<number> {
+                if (ITransport.deviceType === DeviceType.nifty) throw Error("Nifty wallet does not support this command.");
+
+                //@ts-ignore
+                const buf = SecuxScreenDevice.prepareGetAccountSize(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxScreenDevice.resolveAccountSize(rsp);
+            }
+        },
+
+        getAccountInfo: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]): Promise<AccountInfo> {
+                if (ITransport.deviceType === DeviceType.nifty) throw Error("Nifty wallet does not support this command.");
+
+                //@ts-ignore
+                const buf = SecuxScreenDevice.prepareGetAccountInfo(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxScreenDevice.resolveAccountInfo(rsp);
+            }
+        },
+
+        queryAccountInfo: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (query: QueryObject): Promise<AccountInfo | undefined> {
+                ow(query, ow_QueryObject);
+
+                const size = await this.getAccountSize();
+                for (let i = 0; i < size; i++) {
+                    const info = await this.getAccountInfo(i);
+
+                    if (query.contract && query.contract !== info.contract) continue;
+                    if (info.path === query.path &&
+                        (!query.chainId || BigNumber(info.chainId!).eq(query.chainId))) return info;
+                }
+
+                return undefined;
+            }
+        },
+
+        queryAccountInfoByCoin: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (cointype: number, chainId?: number | string): Promise<Array<AccountInfo>> {
+                ow(cointype, ow.number.not.negative);
+                ow(chainId, ow.any(ow.undefined, ow_chainId));
+
+                const list: Array<AccountInfo> = [];
+                const size = await this.getAccountSize();
+                for (let i = 0; i < size; i++) {
+                    const info = await this.getAccountInfo(i);
+
+                    if (
+                        (!chainId || BigNumber(info.chainId!).eq(chainId)) &&
+                        info.path.match(RegExp(`^m/[0-9]+[']?/${cointype}[']?/[0-9]+[']?$`))
+                    ) {
+                        list.push(info);
+                    }
+                }
+
+                return list;
+            }
+        }
+    });
+} catch (error) {
+    // skip plugin injection 
+}
+
+
 type QueryObject = {
     path: string,
-    chinId: number | 0,
+    chinId: number | string | undefined,
     contract?: string
 };
 
 const ow_QueryObject = ow.object.exactShape({
     path: ow_AccountPath,
-    chainId: ow.optional.number.not.negative,
+    chainId: ow.any(ow.undefined, ow_chainId),
     contract: ow.any(ow.undefined, owTool.hashString)
 });
 
@@ -283,4 +344,13 @@ function checkHardened(value: number) {
     } else {
         return `${value}`;
     }
+}
+
+function asciiToArray(str: string, alloc: number) {
+    const chars = new Uint8Array(alloc);
+    for (let i = 0; i < str.length; i++) {
+        chars[i] = str.charCodeAt(i);
+    }
+
+    return chars;
 }
