@@ -116,6 +116,42 @@ abstract class ITransport {
         return getPlugin(args[0]).sign.call(this, ...args);
     }
 
+    async signWithImage(imageName: string, imageData: communicationData, metadata: any, ...args: any[]) {
+        let SecuxDeviceNifty;
+        try {
+            ({ SecuxDeviceNifty } = require("@secux/protocol-device"));
+        } catch (error) {
+            // do nothing
+        }
+        if (!SecuxDeviceNifty) {
+            throw Error('The package "@secux/protocol-device" of verison above 3.1.0 needed.');
+        }
+
+        // prepare command data for image and check if device supported.
+        const { FileDestination } = require("@secux/protocol-device/lib/interface");
+        const dataList = SecuxDeviceNifty.prepareSendImage(
+            imageName,
+            imageData,
+            metadata,
+            FileDestination.CONFIRM
+        );
+
+        // begin signing
+        this.#sendImage = false;
+        const task = this.sign(...args);
+        while (!this.#sendImage) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // send image
+        for (const data of dataList) await this.Exchange(getBuffer(data));
+
+        // user interaction
+        const { raw_tx, signature } = await task;
+
+        return { raw_tx, signature };
+    }
+
     get version() { return this.#version ?? ITransport.PROTOCOLv1; }
     set version(value: number) {
         if (!!this.#version) throw Error("Protocol cannot change after setup.");
@@ -152,6 +188,7 @@ abstract class ITransport {
     #packetSize?: number;
     #timeout: number;
     #error?: Error;
+    #sendImage: boolean = false;
 
 
     async #Read(): Promise<Buffer> {
@@ -181,6 +218,8 @@ abstract class ITransport {
         try {
             const obj = IResolver.handleData.call(this.#resolver, data);
             if (obj.isNotify) {
+                // wait for notification to start sending image (nifty)
+                this.#sendImage = true;
                 this.OnNotification?.call(undefined, obj.data);
                 return;
             }
@@ -203,8 +242,10 @@ abstract class ITransport {
         this.#isRunning = true;
 
         let L1 = data;
+        let isAPDU = false;
         if (this.#version === ITransport.PROTOCOLv2 && this.autoApplyL1 && data[0] !== 0xf8) {
             L1 = getBuffer(to_L1_APDU(data));
+            isAPDU = true;
         }
         this.#resolver.Sent = L1;
 
@@ -225,6 +266,15 @@ abstract class ITransport {
             await new Promise(resolve => setTimeout(resolve, 1));
 
             if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
+        }
+
+        // when signing with image on nifty, it needs to skip the command for image.
+        if (this.#version === ITransport.PROTOCOLv2 && isAPDU) {
+            while (this.#lastData[1] !== 0x02) {
+                await new Promise(resolve => setTimeout(resolve, 1));
+
+                if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
+            }
         }
 
         if (this.#error) throw this.#error;

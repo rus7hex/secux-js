@@ -135,9 +135,10 @@ class SecuxETH {
      * Convert unsigned transaction to command data.
      * @param {string} path m/44'/60'/... 
      * @param {communicationData} serialized unsigned transaction
+     * @param {TransactionType} [txType] transaction type
      * @returns {communicationData} data for sending to device
      */
-    static prepareSignSerialized(path: string, serialized: communicationData): communicationData {
+    static prepareSignSerialized(path: string, serialized: communicationData, txType?: TransactionType): communicationData {
         ow(serialized, ow_communicationData);
 
 
@@ -145,7 +146,7 @@ class SecuxETH {
         logger?.debug(`- prepareSignSerialized\ninput serialized tx: ${buf.toString("hex")}`);
         const builder = ETHTransactionBuilder.deserialize(buf);
 
-        return prepareSign(path, builder).commandData;
+        return prepareSign(path, builder, txType).commandData;
     }
 
     /**
@@ -180,15 +181,16 @@ class SecuxETH {
      * Prepare data for signing.
      * @param {string} path m/44'/60'/... 
      * @param {tx155} content EIP-155 transaction object
+     * @param {TransactionType} [txType] transaction type
      * @returns {prepared} prepared object
      */
-    static prepareSignEIP155(path: string, content: tx155) {
+    static prepareSignEIP155(path: string, content: tx155, txType?: TransactionType) {
         ow(content, ow_tx155);
 
 
         const builder = getBuilder(content);
 
-        return prepareSign(path, builder);
+        return prepareSign(path, builder, txType);
     }
 
     /**
@@ -219,15 +221,16 @@ class SecuxETH {
      * Prepare data for signing (London Hard Fork).
      * @param {string} path m/44'/60'/... 
      * @param {tx1559} content EIP-1559 transaction object
+     * @param {TransactionType} [txType] transaction type
      * @returns {prepared} prepared object
      */
-    static prepareSignEIP1559(path: string, content: tx1559) {
+    static prepareSignEIP1559(path: string, content: tx1559, txType?: TransactionType) {
         ow(content, ow_tx1559);
 
 
         const builder = getBuilder(content);
 
-        return prepareSign(path, builder);
+        return prepareSign(path, builder, txType);
     }
 
     /**
@@ -342,14 +345,14 @@ class SecuxETH {
         return xpub;
     }
 
-    static async sign(this: ITransport, path: string, content: tx155, useWalletConnect?: boolean): Promise<{ raw_tx: string, signature: string }>
-    static async sign(this: ITransport, path: string, content: tx1559, useWalletConnect?: boolean): Promise<{ raw_tx: string, signature: string }>
-    static async sign(this: ITransport, path: string, serialized: communicationData): Promise<{ raw_tx: string, signature: string }>
+    static async sign(this: ITransport, path: string, content: tx155, txType?: TransactionType): Promise<{ raw_tx: string, signature: string }>
+    static async sign(this: ITransport, path: string, content: tx1559, txType?: TransactionType): Promise<{ raw_tx: string, signature: string }>
+    static async sign(this: ITransport, path: string, serialized: communicationData, txType?: TransactionType): Promise<{ raw_tx: string, signature: string }>
     static async sign(this: ITransport, path: string, message: string, chainId?: number): Promise<{ signature: string }>
     static async sign(this: ITransport, path: string, typedData: JsonString, chainId?: number): Promise<{ signature: string }>
     static async sign(this: ITransport, path: string, args: any, option?: any) {
         const signSerialized = async () => {
-            const data = SecuxETH.prepareSignSerialized(path, args);
+            const data = SecuxETH.prepareSignSerialized(path, args, option);
             const rsp = await this.Exchange(getBuffer(data));
             let signature = Buffer.from(SecuxETH.resolveSignature(rsp), "hex");
             signature = ETHTransactionBuilder.deserialize(getBuffer(args)).getSignature(signature);
@@ -385,10 +388,6 @@ class SecuxETH {
 
         let func: any = SecuxETH.prepareSignEIP155;
 
-        if (typeof option === "boolean" && option) {
-            func = SecuxETH.prepareSignWalletConnectTransaction;
-        }
-
         if (args.accessList ||
             args.maxPriorityFeePerGas ||
             args.maxFeePerGas
@@ -396,7 +395,11 @@ class SecuxETH {
             func = SecuxETH.prepareSignEIP1559;
         }
 
-        const { commandData, rawTx } = func(path, args);
+        if (typeof option === "boolean" && option) {
+            func = SecuxETH.prepareSignWalletConnectTransaction;
+        }
+
+        const { commandData, rawTx } = func(path, args, option);
         const rsp = await this.Exchange(getBuffer(commandData));
         let signature = Buffer.from(SecuxETH.resolveSignature(rsp), "hex");
         signature = ETHTransactionBuilder.deserialize(getBuffer(rawTx)).getSignature(signature);
@@ -431,9 +434,9 @@ export function prepareSign(path: string, builder: ETHTransactionBuilder, tp?: T
     checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
     ow(path, ow_path);
 
-    if (tp === undefined) {
-        if (builder.tx.value === undefined || builder.tx.value == "0")
-            tp = TransactionType.TOKEN;
+    if (!tp) {
+        if (!builder.tx.value)
+            tp = isNFT(builder.tx.data) ? TransactionType.NFT : TransactionType.TOKEN;
         else
             tp = TransactionType.NORMAL;
     }
@@ -492,6 +495,25 @@ function isBlindSign(data: string | Buffer) {
     }
 
     return true;
+}
+
+function isNFT(data: string | Buffer) {
+    const abiData = Buffer.isBuffer(data) ? data.toString("hex") : data?.replace(/^0x/, '');
+    if (!abiData) return false;
+
+    const abiNFT = [
+        "23b872dd",  // transferFrom
+        "42842e0e",  // safeTransferFrom
+        "f242432a",  // safeTransferFrom with empty Data field
+    ];
+
+    console.log(abiData);
+
+    for (const abi of abiNFT) {
+        if (abiData.startsWith(abi)) return true;
+    }
+
+    return false;
 }
 
 

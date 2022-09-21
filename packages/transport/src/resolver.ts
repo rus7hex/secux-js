@@ -65,6 +65,13 @@ export abstract class IResolver {
         return { data: EMPTY_BUFFER, response: EMPTY_RESPONSE, isNotify: false };
     }
 
+    protected sendData(data: Buffer) {
+        if (this.#isRunning) throw Error("ExecutionError: device does not support multi-tasking");
+
+        this.#sent = data;
+        this.#isRunning = true;
+    }
+
     get Next(): IResolver | undefined {
         return this.#next;
     }
@@ -78,15 +85,16 @@ export abstract class IResolver {
     }
 
     get Sent(): Buffer {
-        return this.#sent;
+        if (this.#sent.length !== 0) return this.#sent;
+        if (this.#next) return this.#next.Sent;
+
+        return EMPTY_BUFFER;
     }
     set Sent(data: Buffer) {
-        if (this.#isRunning) throw Error("ExecutionError: device does not support multi-tasking");
-
-        this.#sent = data;
-        this.#isRunning = true;
-
-        if (this.#next) this.#next.Sent = data;
+        this.sendData(data);
+        if (this.#sent.length === 0 && this.#next) {
+            this.#next.Sent = data;
+        }
     }
 
     get cla(): number {
@@ -203,33 +211,23 @@ export class CommandResolver extends BaseResolver {
         return { data: buf, response, isNotify: false };
     }
 
-    get Sent(): Buffer {
-        return super.Sent;
+    protected sendData(data: Buffer): void {
+        const obj = this.#get_CLA_INS(data);
+        if (!obj) return;
+
+        super.sendData(data);
+        this.#cla = obj.cla;
+        this.#ins = obj.ins;
     }
-    set Sent(data: Buffer) {
-        super.Sent = data;
 
-        if (data.length < 12) {
-            this.#cla = 0;
-            this.#ins = 0;
-            return;
-        }
+    #get_CLA_INS(data: Buffer) {
+        let cla = data[0], ins = data[1];
 
-        this.#cla = data[0];
-        if (this.#cla !== 0x70 && this.#cla !== 0x80) {
-            this.#cla = 0;
-            this.#ins = 0;
-            return;
-        }
+        if (data.length < 12) return;
+        if (cla !== 0x70 && cla !== 0x80) return;
+        if (data.length !== data.readUInt16LE(4) + 12) return;
 
-        this.#ins = data[1];
-
-        const dataLen = data.readUint16LE(4);
-        if (data.length !== dataLen + 12) {
-            this.#cla = 0;
-            this.#ins = 0;
-            return;
-        }
+        return { cla, ins };
     }
 
     get cla(): number {
@@ -388,11 +386,20 @@ export class APDUResolver extends BaseResolverV2 {
     }
 
     get Sent(): Buffer {
-        return super.Sent;
+        if (this.#resolver.Sent.length !== 0) return this.#resolver.Sent;
+        if (this.Next) return this.Next.Sent;
+
+        return EMPTY_BUFFER;
     }
     set Sent(data: Buffer) {
-        super.Sent = data;
+        if (data[0] !== 0xf8) return;
+        if (data[1] !== 0x02) return;
+
         this.#resolver.Sent = data.slice(4);
+
+        if (this.#resolver.Sent.length === 0 && this.Next) {
+            this.Next.Sent = data;
+        }
     }
 
     get cla(): number {
@@ -429,5 +436,9 @@ export class NotifyResolver extends BaseResolverV2 {
             data,
             status: (condition >= NotifyResolver.Notifys) ? StatusCode.SUCCESS : StatusCode.DATA_ERROR
         }
+    }
+
+    protected sendData(data: Buffer): void {
+        // do nothing
     }
 }
