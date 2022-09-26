@@ -110,6 +110,104 @@ export const signDataLayout = (data: signData) => BufferLayout.struct<any>([
     publicKeyLayout('recentBlockhash'),
 ]);
 
+export type MessageHeader = {
+    numRequiredSignatures: number;
+    numReadonlySignedAccounts: number;
+    numReadonlyUnsignedAccounts: number;
+};
+
+export type MessageData = {
+    prefix: number;
+    header: MessageHeader;
+    staticAccountKeysLength: Uint8Array;
+    staticAccountKeys: Array<Uint8Array>;
+    recentBlockhash: Uint8Array;
+    instructionsLength: Uint8Array;
+    serializedInstructions: Uint8Array;
+    addressTableLookupsLength: Uint8Array;
+    serializedAddressTableLookups: Uint8Array;
+}
+
+export const messageLayout = (data: MessageData) => BufferLayout.struct<any>([
+    BufferLayout.u8('prefix'),
+
+    BufferLayout.struct<any>(
+        [
+            BufferLayout.u8('numRequiredSignatures'),
+            BufferLayout.u8('numReadonlySignedAccounts'),
+            BufferLayout.u8('numReadonlyUnsignedAccounts'),
+        ],
+        'header',
+    ),
+
+    BufferLayout.blob(
+        data.staticAccountKeysLength.length,
+        'staticAccountKeysLength',
+    ),
+
+    BufferLayout.seq(
+        publicKeyLayout(),
+        data.staticAccountKeys.length,
+        'staticAccountKeys',
+    ),
+
+    publicKeyLayout('recentBlockhash'),
+
+    BufferLayout.blob(
+        data.instructionsLength.length,
+        'instructionsLength'
+    ),
+
+    BufferLayout.blob(
+        data.serializedInstructions.length,
+        'serializedInstructions',
+    ),
+
+    BufferLayout.blob(
+        data.addressTableLookupsLength.length,
+        'addressTableLookupsLength',
+    ),
+
+    BufferLayout.blob(
+        data.serializedAddressTableLookups.length,
+        'serializedAddressTableLookups',
+    ),
+]);
+
+export type AddressTableLookupData = {
+    accountKey: Uint8Array;
+    encodedWritableIndexesLength: Uint8Array;
+    writableIndexes: number[];
+    encodedReadonlyIndexesLength: Uint8Array;
+    readonlyIndexes: number[];
+}
+
+export const addressTableLookupLayout = (data: AddressTableLookupData) => BufferLayout.struct<any>([
+    publicKeyLayout('accountKey'),
+
+    BufferLayout.blob(
+        data.encodedWritableIndexesLength.length,
+        'encodedWritableIndexesLength',
+    ),
+
+    BufferLayout.seq(
+        BufferLayout.u8(),
+        data.writableIndexes.length,
+        'writableIndexes',
+    ),
+
+    BufferLayout.blob(
+        data.encodedReadonlyIndexesLength.length,
+        'encodedReadonlyIndexesLength',
+    ),
+
+    BufferLayout.seq(
+        BufferLayout.u8(),
+        data.readonlyIndexes.length,
+        'readonlyIndexes',
+    ),
+]);
+
 export const createLayout = BufferLayout.struct<any>([
     BufferLayout.u32('instruction'),
     BufferLayout.ns64('lamports'),

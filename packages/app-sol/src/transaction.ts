@@ -20,11 +20,16 @@ limitations under the License.
 import * as nacl from "tweetnacl";
 import { Base58 } from "@secux/utility/lib/bs58";
 import { Base58String, HexString } from "./interface";
-import { instructionLayout, signDataLayout } from "./layout";
+import {
+    AddressTableLookupData, addressTableLookupLayout, InstructionData, instructionLayout, MessageData,
+    messageLayout, signDataLayout
+} from "./layout";
+import { toPublickey } from "./utils";
 
 
 const PACKET_DATA_SIZE = 1280 - 40 - 8;
 const PUBLICKEY_LENGTH = 32;
+const VERSION_PREFIX_MASK = 0x7f;
 
 export type Instruction = {
     programId: HexString,
@@ -49,62 +54,15 @@ export class Transaction {
         this.#recentBlockhash = blockHash;
     }
 
-    static from(data: Buffer): Transaction {
-        let byteArray = [...data];
-        const obj = new Transaction('');
+    static fromMessage(data: Buffer): Transaction {
+        const prefix = data[0];
+        const isLegacy = prefix === (prefix & VERSION_PREFIX_MASK);
 
-        obj.#numRequiredSignatures = byteArray.shift()!;
-        obj.#numReadonlySignedAccounts = byteArray.shift()!;
-        obj.#numReadonlyUnsignedAccounts = byteArray.shift()!;
+        const tx = isLegacy ? new Transaction('') : new TransactionV0('');
+        tx.deserializeMessage(data);
+        tx.#cache = Buffer.from([...data]);
 
-        const addKey = (src: Array<HexString>, size: number) => {
-            for (let i = 0; i < size; i++) {
-                const key = byteArray.splice(0, PUBLICKEY_LENGTH);
-                src.push(Buffer.from(key).toString("hex"));
-            }
-        };
-        const accountSize = decodeLength(byteArray);
-        addKey(obj.#signedKeys, obj.#numRequiredSignatures - obj.#numReadonlySignedAccounts);
-        addKey(obj.#readonlySignedKeys, obj.#numReadonlySignedAccounts);
-        addKey(obj.#unsignedKeys, obj.#numReadonlyUnsignedAccounts);
-        addKey(obj.#readonlyUnsignedKeys, accountSize - obj.#numRequiredSignatures - obj.#numReadonlyUnsignedAccounts);
-
-        obj.#recentBlockhash = Base58.encode(byteArray.splice(0, PUBLICKEY_LENGTH));
-
-        const accountKeys = [
-            ...obj.#signedKeys,
-            ...obj.#readonlySignedKeys,
-            ...obj.#unsignedKeys,
-            ...obj.#readonlyUnsignedKeys
-        ];
-        const insSize = decodeLength(byteArray);
-        for (let i = 0; i < insSize; i++) {
-            const programIdIndex = byteArray.shift()!;
-            const programId = accountKeys[programIdIndex];
-
-            const accountsLen = decodeLength(byteArray);
-            const accountIndices = byteArray.splice(0, accountsLen);
-            const accounts = accountIndices.map(idx => ({
-                publickey: accountKeys[idx],
-                isSigner: idx < obj.#numRequiredSignatures,
-                isWritable:
-                    idx < obj.#numReadonlySignedAccounts - obj.#numReadonlySignedAccounts ||
-                    (idx >= obj.#numRequiredSignatures && idx < accountKeys.length - obj.#numReadonlyUnsignedAccounts)
-            }));
-
-            const dataLen = decodeLength(byteArray);
-            const data = Buffer.from(byteArray.splice(0, dataLen));
-
-            obj.#instructions.push({
-                programId,
-                accounts,
-                data
-            });
-        }
-
-        obj.#cache = Buffer.from([...data]);
-
-        return obj;
+        return tx;
     }
 
     addInstruction(ins: Instruction) {
@@ -131,39 +89,13 @@ export class Transaction {
         }
     }
 
-    serialize(feePayer?: HexString): Buffer {
-        const { accountKeys, instructions } = this.#makeIndexed(feePayer);
-
-        const signData = Buffer.allocUnsafe(PACKET_DATA_SIZE);
-        let offset = 0;
-
-        const tx = {
-            numRequiredSignatures: Buffer.from([this.#numRequiredSignatures]),
-            numReadonlySignedAccounts: Buffer.from([this.#numReadonlySignedAccounts]),
-            numReadonlyUnsignedAccounts: Buffer.from([this.#numReadonlyUnsignedAccounts]),
-            keyCount: encodeLength(accountKeys.length),
-            keys: accountKeys.map(x => Buffer.from(x, "hex")),
-            recentBlockhash: Base58.decode(this.#recentBlockhash)
-        };
-        let layout = signDataLayout(tx);
-        offset += layout.encode(tx, signData);
-
-        const headSize = offset;
-        offset += encodeLength(instructions.length).copy(signData, offset);
-        for (const ins of instructions) {
-            layout = instructionLayout(ins);
-            offset += layout.encode(ins, signData, offset);
-
-            if (offset - headSize > PACKET_DATA_SIZE) throw Error("Exceed the maximum over-the-wire size");
-        }
-
-        this.#cache = signData.slice(0, offset);
-
+    dataForSign(feePayer?: HexString): Buffer {
+        this.#cache = this.serializeMessage(feePayer);
         return this.#cache;
     }
 
     addSignature(publickey: HexString, signature: Buffer) {
-        if (!this.#cache) throw Error("serialization needed");
+        if (!this.#cache) throw Error("message serialization needed");
 
         if (signature.length !== 64) throw Error(`invalid signature length, got ${signature.toString("hex")}`);
 
@@ -174,7 +106,9 @@ export class Transaction {
         this.#sigMap[publickey] = signature;
     }
 
-    finalize(): Buffer {
+    serialize(): Buffer {
+        if (!this.#cache) throw Error("message serialization needed");
+
         const sigCount = encodeLength(this.#signedKeys.length);
         const size = sigCount.length + this.#signedKeys.length * 64 + this.#cache!.length;
         if (size > PACKET_DATA_SIZE) throw Error(`transaction too large (maximum: ${PACKET_DATA_SIZE}), got ${size}`);
@@ -198,12 +132,101 @@ export class Transaction {
     }
 
     get Signers() {
-        if (!this.#cache) throw Error("serialization needed");
+        if (!this.#cache) throw Error("message serialization needed");
 
         return [...this.#signedKeys];
     }
 
-    #makeIndexed(feePayer?: HexString) {
+    get Version(): number | undefined { return undefined; }
+    get numRequiredSignatures() { return this.#numRequiredSignatures; }
+    get numReadonlySignedAccounts() { return this.#numReadonlySignedAccounts; }
+    get numReadonlyUnsignedAccounts() { return this.#numReadonlyUnsignedAccounts; }
+    get recentBlockhash() { return this.#recentBlockhash; }
+
+    protected serializeMessage(feePayer?: HexString) {
+        const { accountKeys, instructions } = this.makeIndexed(feePayer);
+
+        const signData = Buffer.allocUnsafe(PACKET_DATA_SIZE);
+        let offset = 0;
+
+        const tx = {
+            numRequiredSignatures: Buffer.from([this.#numRequiredSignatures]),
+            numReadonlySignedAccounts: Buffer.from([this.#numReadonlySignedAccounts]),
+            numReadonlyUnsignedAccounts: Buffer.from([this.#numReadonlyUnsignedAccounts]),
+            keyCount: encodeLength(accountKeys.length),
+            keys: accountKeys.map(x => Buffer.from(x, "hex")),
+            recentBlockhash: Base58.decode(this.#recentBlockhash)
+        };
+        let layout = signDataLayout(tx);
+        offset += layout.encode(tx, signData);
+
+        const encodedInstructions = this.encodeInstructions(instructions);
+        if (offset + encodedInstructions.length > PACKET_DATA_SIZE) {
+            Error("Exceed the maximum over-the-wire size");
+        }
+        offset += encodeLength(instructions.length).copy(signData, offset);
+        offset += encodedInstructions.copy(signData, offset);
+
+        return signData.slice(0, offset);
+    }
+
+    protected deserializeMessage(data: Buffer) {
+        const byteArray = [...data];
+
+        this.#numRequiredSignatures = byteArray.shift()!;
+        this.#numReadonlySignedAccounts = byteArray.shift()!;
+        this.#numReadonlyUnsignedAccounts = byteArray.shift()!;
+
+        const addKey = (src: Array<HexString>, size: number) => {
+            for (let i = 0; i < size; i++) {
+                const key = byteArray.splice(0, PUBLICKEY_LENGTH);
+                src.push(Buffer.from(key).toString("hex"));
+            }
+        };
+        const accountSize = decodeLength(byteArray);
+        addKey(this.#signedKeys, this.#numRequiredSignatures - this.#numReadonlySignedAccounts);
+        addKey(this.#readonlySignedKeys, this.#numReadonlySignedAccounts);
+        addKey(this.#unsignedKeys, this.#numReadonlyUnsignedAccounts);
+        addKey(this.#readonlyUnsignedKeys, accountSize - this.#numRequiredSignatures - this.#numReadonlyUnsignedAccounts);
+
+        this.#recentBlockhash = Base58.encode(byteArray.splice(0, PUBLICKEY_LENGTH));
+
+        const accountKeys = [
+            ...this.#signedKeys,
+            ...this.#readonlySignedKeys,
+            ...this.#unsignedKeys,
+            ...this.#readonlyUnsignedKeys
+        ];
+        this.#instructions.length = 0;
+        const insSize = decodeLength(byteArray);
+        for (let i = 0; i < insSize; i++) {
+            const programIdIndex = byteArray.shift()!;
+            const programId = accountKeys[programIdIndex];
+
+            const accountsLen = decodeLength(byteArray);
+            const accountIndices = byteArray.splice(0, accountsLen);
+            const accounts = accountIndices.map(idx => ({
+                publickey: accountKeys[idx],
+                isSigner: idx < this.#numRequiredSignatures,
+                isWritable:
+                    idx < this.#numReadonlySignedAccounts - this.#numReadonlySignedAccounts ||
+                    (idx >= this.#numRequiredSignatures && idx < accountKeys.length - this.#numReadonlyUnsignedAccounts)
+            }));
+
+            const dataLen = decodeLength(byteArray);
+            const data = Buffer.from(byteArray.splice(0, dataLen));
+
+            this.#instructions.push({
+                programId,
+                accounts,
+                data
+            });
+        }
+
+        return byteArray;
+    }
+
+    protected makeIndexed(feePayer?: HexString) {
         if (this.#instructions.length === 0) throw Error("No instructions provided");
 
         const set = new Set<string>();
@@ -251,6 +274,113 @@ export class Transaction {
 
         return { accountKeys, instructions }
     }
+
+    protected encodeInstructions(instructions: Array<InstructionData>) {
+        const data = Buffer.allocUnsafe(PACKET_DATA_SIZE);
+        let offset = 0;
+
+        for (const ins of instructions) {
+            const layout = instructionLayout(ins);
+            offset += layout.encode(ins, data, offset);
+        }
+
+        return data.slice(0, offset);
+    }
+}
+
+export type AddressLookup = {
+    accountKey: HexString | Base58String,
+    writableIndexes: number[],
+    readonlyIndexes: number[]
+}
+
+const MESSAGE_VERSION_0_PREFIX = 1 << 7;
+export class TransactionV0 extends Transaction {
+    #addressTableLookups: Array<AddressLookup> = [];
+
+    addAddressLookup(lookup: AddressLookup) {
+        if (!/[0-9a-fA-F]{64}/.test(lookup.accountKey)) {
+            lookup.accountKey = toPublickey(lookup.accountKey);
+        }
+
+        this.#addressTableLookups.push(lookup);
+    }
+
+    protected serializeMessage(feePayer?: HexString) {
+        const { accountKeys, instructions } = this.makeIndexed(feePayer);
+        const serializedMessage = Buffer.allocUnsafe(PACKET_DATA_SIZE);
+
+        const message: MessageData = {
+            prefix: MESSAGE_VERSION_0_PREFIX,
+            header: {
+                numRequiredSignatures: this.numRequiredSignatures,
+                numReadonlySignedAccounts: this.numReadonlySignedAccounts,
+                numReadonlyUnsignedAccounts: this.numReadonlyUnsignedAccounts
+            },
+            staticAccountKeysLength: encodeLength(accountKeys.length),
+            staticAccountKeys: accountKeys.map(x => Buffer.from(x, "hex")),
+            recentBlockhash: Base58.decode(this.recentBlockhash),
+            instructionsLength: encodeLength(instructions.length),
+            serializedInstructions: this.encodeInstructions(instructions),
+            addressTableLookupsLength: encodeLength(this.#addressTableLookups.length),
+            serializedAddressTableLookups: this.encodeAddressTableLookups(this.#addressTableLookups)
+        };
+        const offset = messageLayout(message).encode(message, serializedMessage);
+
+        return serializedMessage.slice(0, offset);
+    }
+
+    protected deserializeMessage(data: Buffer) {
+        const prefix = data[0];
+        const version = prefix & VERSION_PREFIX_MASK;
+        if (prefix === version) {
+            throw Error("expected versioned message but received legacy message");
+        }
+        if (version !== this.Version) {
+            throw Error(`expected versioned message with version ${this.Version} but found version ${version}`);
+        }
+
+        const byteArray = super.deserializeMessage(data.slice(1));
+
+        this.#addressTableLookups.length = 0;
+        const addressTableLookupsCount = decodeLength(byteArray);
+        for (let i = 0; i < addressTableLookupsCount; i++) {
+            const key = byteArray.splice(0, PUBLICKEY_LENGTH);
+            const accountKey = Buffer.from(key).toString("hex");
+            const writableLength = decodeLength(byteArray);
+            const writableIndexes = byteArray.splice(0, writableLength);
+            const readonlyLength = decodeLength(byteArray);
+            const readonlyIndexes = byteArray.splice(0, readonlyLength);
+
+            this.#addressTableLookups.push({
+                accountKey,
+                writableIndexes,
+                readonlyIndexes
+            });
+        }
+
+        return byteArray;
+    }
+
+    protected encodeAddressTableLookups(table: Array<AddressLookup>) {
+        const data = Buffer.allocUnsafe(PACKET_DATA_SIZE);
+        let offset = 0;
+
+        for (const { accountKey, writableIndexes, readonlyIndexes } of table) {
+            const lookup: AddressTableLookupData = {
+                accountKey: Buffer.from(accountKey, "hex"),
+                encodedWritableIndexesLength: encodeLength(writableIndexes.length),
+                writableIndexes: writableIndexes,
+                encodedReadonlyIndexesLength: encodeLength(readonlyIndexes.length),
+                readonlyIndexes: readonlyIndexes
+            };
+            offset += addressTableLookupLayout(lookup).encode(lookup, data, offset);
+        }
+
+        return data.slice(0, offset);
+    }
+
+    get Version() { return 0; }
 }
 
 

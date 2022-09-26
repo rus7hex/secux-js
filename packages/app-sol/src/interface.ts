@@ -92,20 +92,25 @@ export const ow_builtinInstruction = ow.object.partialShape({
     type: ow.string.oneOf(Object.values(InstructionType)),
 });
 
+export type Ownership = {
+    path: string,
+    account: Base58String
+};
 export type txDetail = {
     recentBlockhash: Base58String,
     instructions: Array<Instruction | BuiltinInstruction>,
-    ownerships: Array<{ path: string, account: Base58String }>,
+    ownerships: Array<Ownership>,
     txType?: TransactionType
 };
 
+export const ow_ownership = ow.object.partialShape({
+    path: ow_path,
+    account: ow_address
+});
 export const ow_txDetail = ow.object.partialShape({
     recentBlockhash: ow_address,
     instructions: ow.array.ofType(ow.any(ow_instruction, ow_builtinInstruction)).nonEmpty,
-    ownerships: ow.array.ofType(ow.object.partialShape({
-        path: ow_path,
-        account: ow_address
-    })).nonEmpty,
+    ownerships: ow.array.ofType(ow_ownership).nonEmpty,
     txType: ow.any(ow.undefined, ow_TransactionType)
 });
 

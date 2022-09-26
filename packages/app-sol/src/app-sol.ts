@@ -20,12 +20,14 @@ limitations under the License.
 import ow from "ow";
 import { Base58 } from "@secux/utility/lib/bs58";
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
-import { EllipticCurve, TransactionType } from "@secux/protocol-transaction/lib/interface";
-import { communicationData, getBuffer, toCommunicationData, wrapResult } from "@secux/utility/lib/communication";
+import { EllipticCurve, ow_TransactionType, TransactionType } from "@secux/protocol-transaction/lib/interface";
+import {
+    communicationData, getBuffer, ow_communicationData, toCommunicationData, wrapResult
+} from "@secux/utility/lib/communication";
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
 import {
-    ATAOption, BuiltinInstruction, Instruction, InstructionMap, ow_address, ow_ATAOption, ow_path, ow_publickey,
-    ow_SeedOption, ow_txDetail, SeedOption, txDetail
+    ATAOption, BuiltinInstruction, Instruction, InstructionMap, Ownership, ow_address, ow_ATAOption,
+    ow_ownership, ow_path, ow_publickey, ow_SeedOption, ow_txDetail, SeedOption, txDetail
 } from "./interface";
 import { Transaction } from "./transaction";
 import { checkFWVersion, loadPlugin, Logger, Signature } from "@secux/utility";
@@ -137,8 +139,6 @@ export class SecuxSOL {
      * @returns {prepared} prepared object
      */
     static prepareSign(feePayer: string, content: txDetail): { commandData: communicationData, serialized: communicationData } {
-        checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
-        checkFWVersion("se", se, ITransport.seVersion);
         ow(feePayer, ow_address);
         ow(content, ow_txDetail);
 
@@ -162,15 +162,37 @@ export class SecuxSOL {
             });
         }
 
-        const signData = tx.serialize(toPublickey(feePayer));
+        const sigData = tx.dataForSign(toPublickey(feePayer));
+        return SecuxSOL.prepareSignSerialized(feePayer, sigData, content.ownerships, content.txType);
+    }
+
+    /**
+     * Prepare data for signing.
+     * @param {string} feePayer solana account
+     * @param {communicationData} sigData serialized message (legacy / v0)
+     * @param {Array<Ownership>} ownerships accounts that need to sign transaction
+     * @param {TransactionType} [txType] transaction type (normal, token, NFT)
+     * @returns {prepared} prepared object
+     */
+    static prepareSignSerialized(feePayer: string, sigData: communicationData, ownerships: Array<Ownership>, txType?: TransactionType) {
+        checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
+        checkFWVersion("se", se, ITransport.seVersion);
+        ow(feePayer, ow_address);
+        ow(sigData, ow_communicationData);
+        ow(ownerships, ow.array.ofType(ow_ownership).nonEmpty);
+        ow(txType, ow.any(ow.undefined, ow_TransactionType));
+
+        const _sigData = toBuffer(sigData);
+        const tx = Transaction.fromMessage(_sigData);
         const signers = tx.Signers.map(x => SecuxSOL.addressConvert(x));
-        if (signers.length < content.ownerships.length) {
-            logger?.warn(`expect ${signers.length} signers, but got ${content.ownerships.length}`);
+        if (signers.length < ownerships.length) {
+            logger?.warn(`expect ${signers.length} signers, but got ${ownerships.length}`);
         }
+
         const checks: { [pubkey: string]: string } = {};
-        signers.forEach(x => checks[x] = '');
+        signers.forEach(account => checks[account] = '');
         const paths: Array<string> = [];
-        for (const owner of content.ownerships) {
+        for (const owner of ownerships) {
             let check = checks[owner.account];
             if (check === undefined) continue;
             if (!!check) continue;
@@ -179,21 +201,23 @@ export class SecuxSOL {
             paths.push(owner.path);
         }
         for (const account of Object.keys(checks)) {
-            if (!checks[account]) throw Error(`ArgumentError: path of account "${account}" not found`);
+            if (!checks[account]) {
+                logger?.warn(`bip-32 path of account "${account}" not found`);
+            }
         }
 
-        const txs = paths.map(_ => signData);
+        const txs = paths.map(_ => _sigData);
         const commandData = SecuxTransactionTool.signRawTransactionList(
             paths, txs, undefined,
             {
-                tp: content.txType ?? TransactionType.NORMAL,
+                tp: txType ?? TransactionType.NORMAL,
                 curve: EllipticCurve.ED25519
             }
         );
 
         const serialized = Buffer.from(JSON.stringify({
-            rawTx: signData.toString("hex"),
-            map: content.ownerships.map(x => toPublickey(x.account!))
+            rawTx: _sigData.toString("hex"),
+            map: ownerships.map(x => toPublickey(x.account!))
         }));
 
         return wrapResult({ commandData, serialized: toCommunicationData(serialized) });
@@ -220,12 +244,12 @@ export class SecuxSOL {
         const { rawTx, map } = JSON.parse(getBuffer(serialized).toString());
         if (sigs.length !== map.length) throw Error(`expect ${map.length} signatures, but got ${sigs.length}`);
 
-        const tx = Transaction.from(Buffer.from(rawTx, "hex"));
+        const tx = Transaction.fromMessage(Buffer.from(rawTx, "hex"));
         for (let i = 0; i < sigs.length; i++) {
             tx.addSignature(map[i], sigs[i]);
         }
 
-        return tx.finalize().toString("hex");
+        return tx.serialize().toString("hex");
     }
 
     static async getAddress(this: ITransport, path: string, option?: ATAOption | SeedOption) {
@@ -323,7 +347,7 @@ function toBuffer(data: string | Buffer) {
 
 /**
  * Account that needs to sign transaction.
- * @typedef {object} ownership
+ * @typedef {object} Ownership
  * @property {string} path
  * @property {string} account
  */
@@ -333,7 +357,8 @@ function toBuffer(data: string | Buffer) {
  * @typedef {object} txDetail
  * @property {string} recentBlockhash a recent blockhash
  * @property {Array<Instruction | BuiltinInstruction>} instructions a least one instruction in a transaction
- * @property {Array<ownership>} ownerships for signing via SecuX wallet
+ * @property {Array<Ownership>} ownerships for signing via SecuX wallet
+ * @property {TransactionType} [txType] transaction type (normal, token, NFT)
  */
 
 /**

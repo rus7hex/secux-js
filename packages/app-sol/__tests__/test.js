@@ -1,4 +1,6 @@
 const { SecuxSOL } = require("@secux/app-sol");
+const { TransactionV0 } = require("@secux/app-sol/lib/transaction");
+const { toPublickey } = require("@secux/app-sol/lib/utils");
 const { TransactionType } = require("@secux/protocol-transaction/lib/interface");
 const { assert } = require("chai");
 const { mnemonicToSeedSync } = require("bip39");
@@ -95,6 +97,54 @@ export function test(GetDevice) {
                 assert.equal(address, expected.toString());
             });
         });
+    });
+
+    it("verify transaction v0", () => {
+        const path_from = `m/44'/501'/${RandomNumber(20)}'`;
+        const path_to = `m/44'/501'/${RandomNumber(20)}'`;
+        const key_from = derivePath(path_from, seed.toString("hex")).key;
+        const key_to = derivePath(path_to, seed.toString("hex")).key;
+        const from = solanaWeb3.Keypair.fromSeed(key_from).publicKey;
+        const to = solanaWeb3.Keypair.fromSeed(key_to).publicKey;
+        const amount = Math.ceil(Math.random() * 1e9);
+        const recentBlockhash = solanaWeb3.Keypair.generate().publicKey.toString();
+        const transfer = solanaWeb3.SystemProgram.transfer({
+            fromPubkey: from,
+            toPubkey: to,
+            lamports: amount
+        });
+        const accounts = transfer.keys.map(x => ({
+            ...x,
+            publickey: x.pubkey.toBuffer().toString("hex")
+        }));
+
+        const tx = new TransactionV0(recentBlockhash);
+        tx.addInstruction({
+            programId: toPublickey(transfer.programId.toString()),
+            accounts,
+            data: transfer.data
+        });
+        const accountKey = solanaWeb3.Keypair.generate().publicKey;
+        const writableIndexes = [0, 1, 3];
+        const readonlyIndexes = [2, 4, 5];
+        tx.addAddressLookup({
+            accountKey: accountKey.toBuffer().toString("hex"),
+            writableIndexes,
+            readonlyIndexes
+        });
+        const signData = tx.dataForSign();
+
+        const msg = solanaWeb3.MessageV0.deserialize(signData);
+        assert.equal(msg.header.numReadonlySignedAccounts, 0);
+        assert.equal(msg.header.numReadonlyUnsignedAccounts, 1);
+        assert.equal(msg.header.numRequiredSignatures, 1);
+        assert.equal(msg.recentBlockhash, recentBlockhash);
+        assert.deepEqual(msg.compiledInstructions[0].data, transfer.data);
+        assert.deepEqual(msg.compiledInstructions[0].accountKeyIndexes, [0, 1]);
+        assert.equal(msg.numAccountKeysFromLookups, writableIndexes.length + readonlyIndexes.length);
+        assert.deepEqual(msg.addressTableLookups[0].accountKey.toBuffer(), accountKey.toBuffer());
+        assert.deepEqual(msg.addressTableLookups[0].writableIndexes, writableIndexes);
+        assert.deepEqual(msg.addressTableLookups[0].readonlyIndexes, readonlyIndexes);
     });
 
     describe("SecuxSOL.signTransaction()", () => {
