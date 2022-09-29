@@ -18,7 +18,7 @@ limitations under the License.
 
 
 import { ITransport } from "@secux/transport";
-import { decodePathBuffer } from "@secux/utility";
+import { decodePathBuffer, splitPath } from "@secux/utility";
 import * as CMD from "@secux/protocol-transaction/lib/command";
 import { EllipticCurve, ow_EllipticCurve } from "@secux/protocol-transaction/lib/interface";
 import * as bip39 from "bip39";
@@ -57,10 +57,22 @@ class SecuxVirtualTransport extends ITransport {
         if (CMD.GET_PUBLICKEY.reduce(reducer, true)) return this.#getPublickey(raw, data[2]);
         if (CMD.GET_XPUBLICKEY.reduce(reducer, true)) return this.#getXPublickey(raw, data[2]);
         if (CMD.SIGN_TX_RAW.reduce(reducer, true)) return this.#ParseAndSign(raw, data[3]);
-        if (CMD.SIGN_MESSAGE.reduce(reducer, true))
-            return this.#ParseAndSign(raw, data[3], true,
-                // txCount(1 byte) | length(1 byte) | path(24 bytes) | messageLength(2 bytes)
-                Buffer.from(`\x19Ethereum Signed Message:\n${raw.length - 28}`));
+        if (CMD.SIGN_MESSAGE.reduce(reducer, true)) {
+            let offset = 1;
+            const len = raw[offset++];
+            const pathBuf = raw.slice(offset + 4, offset + len);
+            const path = decodePathBuffer(pathBuf);
+            const pathObj = splitPath(path);
+
+            // ethereum sign message
+            if (pathObj.purpose!.value === 44 && pathObj.coinType!.value === 60) {
+                return this.#ParseAndSign(raw, data[3], true,
+                    // txCount(1 byte) | length(1 byte) | path(24 bytes) | messageLength(2 bytes)
+                    Buffer.from(`\x19Ethereum Signed Message:\n${raw.length - 28}`));
+            }
+
+            return this.#ParseAndSign(raw, data[3], true);
+        }
         if (CMD.SIGN_TYPEDMESSAGE.reduce(reducer, true))
             return this.#ParseAndSign(raw, data[3], true,
                 Buffer.from([
@@ -183,6 +195,7 @@ class SecuxVirtualTransport extends ITransport {
                 break;
 
             case EllipticCurve.ED25519:
+            case EllipticCurve.ED25519_RAW:
                 root = HDKeyED25519.fromMasterSeed(this.#seed);
                 break;
 

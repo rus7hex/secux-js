@@ -912,6 +912,37 @@ export function test(GetDevice) {
         });
     });
 
+    describe('SecuxSOL.signMessage()', () => {
+        const path = "m/44'/501'/0'";
+        const message = Buffer.from(
+            "57656c636f6d6520746f204f70656e536561210a0a436c69636b20746f207369676e20696e20616e642061636365707420746865204f70656e536561205465726d73206f6620536572766963653a2068747470733a2f2f6f70656e7365612e696f2f746f730a0a5468697320726571756573742077696c6c206e6f742074726967676572206120626c6f636b636861696e207472616e73616374696f6e206f7220636f737420616e792067617320666565732e0a0a596f75722061757468656e7469636174696f6e207374617475732077696c6c20726573657420616674657220323420686f7572732e0a0a57616c6c657420616464726573733a0a3078643038303135363838353635316661646264366466313431343530353162393334363630613734380a0a4e6f6e63653a0a3335343736",
+            "hex"
+        );
+
+        let expected, signer;
+        before(async () => {
+            const { SecuxVirtualTransport } = await import("@secux/transport-virtual");
+            signer = new SecuxVirtualTransport(mnemonic);
+            expected = (await signer.sign(path, message)).signature;
+        });
+
+        it('can sign message', async () => {
+            const buf = SecuxSOL.prepareSignMessage(path, message);
+            const rsp = await GetDevice().Exchange(buf);
+            const sig = SecuxSOL.resolveSignature(rsp);
+
+            assert.equal(sig, expected);
+        }).timeout(10000);
+
+        it('can sign message of hex string', async () => {
+            const message = "0x1234567890";
+            const { signature } = await GetDevice().sign(path, message);
+            const expected = (await signer.sign(path, message)).signature;
+
+            assert.equal(signature, expected);
+        }).timeout(10000);
+    });
+
     if (BROADCAST) {
         describe("broadcast transaction", () => {
             const path_from = `m/44'/501'/8'`;

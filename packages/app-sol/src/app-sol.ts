@@ -18,6 +18,7 @@ limitations under the License.
 
 
 import ow from "ow";
+import { ArgumentError } from "ow";
 import { Base58 } from "@secux/utility/lib/bs58";
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
 import { EllipticCurve, ow_TransactionType, TransactionType } from "@secux/protocol-transaction/lib/interface";
@@ -37,7 +38,7 @@ import { Action } from "./action";
 const logger = Logger?.child({ id: "app-sol" });
 const mcu = {
     crypto: "2.23",
-    nifty: "2.05.0"
+    nifty: "2.06"
 };
 const se = "1.93";
 
@@ -92,7 +93,7 @@ export class SecuxSOL {
 
     /**
      * Prepare data for SOL address.
-     * @param {string} path BIP32 path (hardened child key), ex: m/44'/501'/0'/0'
+     * @param {string} path BIP32 path (hardened child key), ex: m/44'/501'/0'
      * @returns {communicationData} data for sending to device
      */
     static prepareAddress(path: string): communicationData {
@@ -112,7 +113,7 @@ export class SecuxSOL {
 
     /**
      * Prepare data for ed25519 publickey.
-     * @param {string} path BIP32 path (hardened child key), ex: m/44'/501'/0'/0'
+     * @param {string} path BIP32 path (hardened child key), ex: m/44'/501'/0'
      * @returns {communicationData} data for sending to device
      */
     static preparePublickey(path: string): communicationData {
@@ -174,7 +175,12 @@ export class SecuxSOL {
      * @param {TransactionType} [txType] transaction type (normal, token, NFT)
      * @returns {prepared} prepared object
      */
-    static prepareSignSerialized(feePayer: string, sigData: communicationData, ownerships: Array<Ownership>, txType?: TransactionType) {
+    static prepareSignSerialized(
+        feePayer: string,
+        sigData: communicationData,
+        ownerships: Array<Ownership>,
+        txType?: TransactionType
+    ): { commandData: communicationData, serialized: communicationData } {
         checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
         checkFWVersion("se", se, ITransport.seVersion);
         ow(feePayer, ow_address);
@@ -224,13 +230,51 @@ export class SecuxSOL {
     }
 
     /**
+     * Prepare data for signing.
+     * @param {string} path BIP32 path (hardened child key), ex: m/44'/501'/0'
+     * @param {string | Buffer} message
+     * @returns {communicationData} data for sending to device
+     */
+    static prepareSignMessage(path: string, message: string | Buffer): communicationData {
+        const restrict = {
+            crypto: "2.24",
+            nifty: "2.06"
+        };
+        checkFWVersion("mcu", restrict[ITransport.deviceType], ITransport.mcuVersion);
+        ow(path, ow_path);
+        ow(message, ow.any(ow.string.nonEmpty, ow.buffer));
+
+        let buffer;
+        if (typeof message === "string") {
+            if (message.startsWith("0x")) {
+                buffer = Buffer.from(message.slice(2), "hex");
+            }
+            else {
+                buffer = Buffer.from(message);
+            }
+        }
+
+        return SecuxTransactionTool.signMessage(path, buffer ?? message, { curve: EllipticCurve.ED25519_RAW });
+    }
+
+    /**
      * Reslove signatures from response data.
      * @param {communicationData} response data from device
-     * @returns {Array<string>} signature array (base58 encoded)
+     * @returns {string} signature (base64 encoded)
+     */
+    static resolveSignature(response: communicationData): string {
+        const sig = Buffer.from(SecuxTransactionTool.resolveSignature(response), "base64");
+        return sig.slice(0, -1).toString("base64");
+    }
+
+    /**
+     * Reslove signatures from response data.
+     * @param {communicationData} response data from device
+     * @returns {Array<string>} signature array (base64 encoded)
      */
     static resolveSignatureList(response: communicationData): Array<string> {
         const sigs = getSignatures(response);
-        return sigs.map(x => Base58.encode(x));
+        return sigs.map(x => x.toString("base64"));
     }
 
     /**
@@ -272,7 +316,30 @@ export class SecuxSOL {
         throw Error("Solana(SOL) do not support xpub.");
     }
 
-    static async sign(this: ITransport, feePayer: string, content: txDetail) {
+    static async sign(this: ITransport, feePayerOrPath: string, content: any, ...args: any[]) {
+        // sign message
+        try {
+            ow(feePayerOrPath, ow_path);
+            const path = feePayerOrPath;
+            const data = SecuxSOL.prepareSignMessage(path, content);
+            const rsp = await this.Exchange(getBuffer(data));
+            const signature = SecuxSOL.resolveSignature(rsp);
+
+            return { raw_tx: undefined, signature };
+        }
+        catch (error: any) {
+            if (!(error instanceof ArgumentError)) throw error;
+        }
+
+        const feePayer = feePayerOrPath;
+        if (typeof content === "string" || Buffer.isBuffer(content)) {
+            const { commandData, serialized } = SecuxSOL.prepareSignSerialized(feePayer, content, args[0], args[1]);
+            const rsp = await this.Exchange(getBuffer(commandData));
+            const raw_tx = SecuxSOL.resolveTransaction(rsp, serialized);
+
+            return { raw_tx };
+        }
+
         for (const owner of content.ownerships) {
             if (owner.account) continue;
 
