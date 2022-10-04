@@ -1,0 +1,35 @@
+{
+  "name": "@secux/transport-handler",
+  "version": "1.0.0",
+  "description": "SecuX Hardware Wallet javascript handler for web and application",
+  "keywords": [
+    "secux",
+    "transport",
+    "event"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-handler",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/transport-handler.js",
+  "types": "lib/transport-handler.d.ts",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@secux/transport": "^3.1.2",
+    "events": "^3.3.0"
+  }
+}

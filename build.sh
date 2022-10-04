@@ -5,7 +5,7 @@ rm -r ./lib
 DIR=$(pwd)
 SRC=$(basename "$DIR").ts
 
-if [[ $SRC =~ ^app- ]] 
+if [[ $SRC =~ ^app- || $SRC =~ ^transport- ]] 
 then
     SRC=./src/$SRC
     mv $SRC tmp.ts

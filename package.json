@@ -27,6 +27,7 @@
     "@secux/protocol-device": "file:packages/protocol-device",
     "@secux/protocol-transaction": "file:packages/protocol-transaction",
     "@secux/transport": "file:packages/transport",
+    "@secux/transport-handler": "file:packages/transport-handler",
     "@secux/transport-reactnative": "file:packages/transport-reactnative",
     "@secux/transport-virtual": "file:packages/transport-virtual",
     "@secux/transport-webble": "file:packages/transport-webble",
