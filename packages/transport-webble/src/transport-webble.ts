@@ -162,15 +162,8 @@ class SecuxWebBLE extends ITransport {
 
         const payload = Buffer.from([0x70, 0x61, 0x69, 0x72, 0x69, 0x6e, 0x67]);
         const echoTest = async () => {
-            const data = Buffer.from([0x80 + 2 + payload.length, 0xf8, 0x08, ...payload]);
-            await this.Write(data);
-
-            let rsp = await this.Read();
-            while (!rsp) {
-                rsp = await this.Read();
-                await new Promise(resolve => setTimeout(resolve, 1));
-            }
-
+            const data = Buffer.from([0xf8, 0x08, ...payload]);
+            const rsp = await this.Exchange(data);
             return rsp.slice(2);
         };
 

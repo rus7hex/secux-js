@@ -30,11 +30,19 @@ const EMPTY_RESPONSE: IAPDUResponse = {
 };
 
 
-type IResponse = {
+export type IResponse = {
     data: Buffer,
     response: IAPDUResponse,
-    isNotify: boolean
+    type: ResponseType
 };
+
+export enum ResponseType {
+    UNKNOWN,
+    CRYPTO,
+    NIFTY,
+    APDU,
+    NOTIFY
+}
 
 export abstract class IResolver {
     #next?: IResolver;
@@ -62,7 +70,7 @@ export abstract class IResolver {
             return this.#next.handleData(data);
         }
 
-        return { data: EMPTY_BUFFER, response: EMPTY_RESPONSE, isNotify: false };
+        return { data: EMPTY_BUFFER, response: EMPTY_RESPONSE, type: ResponseType.UNKNOWN };
     }
 
     protected sendData(data: Buffer) {
@@ -118,7 +126,7 @@ export abstract class IResolver {
 
     static handleData(this: IResolver, data: Buffer): IResponse {
         const result = this.handleData(data);
-        if (!result.isNotify && result.data.length !== 0) {
+        if (result.type !== ResponseType.NOTIFY && result.data.length !== 0) {
             IResolver.resetAll.call(this);
         }
 
@@ -140,6 +148,22 @@ export abstract class IResolver {
             cur = cur.#prev;
         }
     }
+
+    static isRunning(this: IResolver): boolean {
+        let cur = this.#next;
+        while (cur) {
+            if (cur.#isRunning) return true;
+            cur = cur.#next;
+        }
+
+        cur = this;
+        while (cur) {
+            if (cur.#isRunning) return true;
+            cur = cur.#prev;
+        }
+
+        return false;
+    }
 }
 
 export class BaseResolver extends IResolver {
@@ -153,7 +177,7 @@ export class BaseResolver extends IResolver {
             return this.toNext(data);
         }
 
-        return { data: buf, response: this.toResponse(buf), isNotify: false };
+        return { data: buf, response: this.toResponse(buf), type: ResponseType.CRYPTO };
     }
 
     toResponse(data: Buffer): IAPDUResponse {
@@ -172,7 +196,7 @@ export class CommandResolver extends BaseResolver {
     #ins: number = 0;
 
     handleData(data: Buffer): IResponse {
-        if (this.#cla === 0) return this.toNext(data);
+        if (this.#cla === 0 || this.#ins === 0) return this.toNext(data);
 
         this.DataSource.push(data);
 
@@ -201,14 +225,26 @@ export class CommandResolver extends BaseResolver {
                 throw Error(`TransferError: ${message}`);
             }
 
+            // received correct response, ready to reset state
+            this.#cla = 0;
+            this.#ins = 0;
+
             if (status !== StatusCode.SUCCESS) {
                 throw new TransportStatusError(status);
             }
 
             response = super.toResponse(buf);
+            return { data: buf, response, type: ResponseType.APDU };
         }
 
-        return { data: buf, response, isNotify: false };
+        return this.toNext(data);
+    }
+
+    reset(): void {
+        // do reset when received correct response
+        if (this.#cla === 0 && this.#ins === 0) {
+            super.reset();
+        }
     }
 
     protected sendData(data: Buffer): void {
@@ -257,7 +293,7 @@ export class BaseResolverV2 extends IResolver {
 
         try {
             const buf = this.unpack(this.DataSource);
-            return { data: buf, response: this.toResponse(buf), isNotify: false };
+            return { data: buf, response: this.toResponse(buf), type: ResponseType.NIFTY };
         }
         catch (error: any) {
             if (error instanceof TransportStatusError) throw error;
@@ -356,8 +392,11 @@ export class APDUResolver extends BaseResolverV2 {
             if (data[1] !== 0x00 || data[2] !== 0x02) return this.toNext(data);
 
             // need more packet
-            this.DataSource.push(data);
-            return this.toNext(data);
+            const serial = data[0] - ProtocolV2.HEAD_PREFIX;
+            if (serial >= ProtocolV2.SERIAL_START) {
+                this.DataSource.push(data);
+                return this.toNext(data);
+            }
         }
 
         this.DataSource.push(data);
@@ -372,7 +411,7 @@ export class APDUResolver extends BaseResolverV2 {
             if (buf.length > 0 && response.data.length < 1) throw error;
         }
 
-        return { data: buf, response, isNotify: false };
+        return { data: buf, response, type: ResponseType.APDU };
     }
 
     toResponse(data: Buffer): IAPDUResponse {
@@ -381,8 +420,11 @@ export class APDUResolver extends BaseResolverV2 {
     }
 
     reset(): void {
-        super.reset();
         this.#resolver.reset();
+        // do reset according to command resolver
+        if (this.#resolver.Sent.length === 0) {
+            super.reset();
+        }
     }
 
     get Sent(): Buffer {
@@ -392,10 +434,10 @@ export class APDUResolver extends BaseResolverV2 {
         return EMPTY_BUFFER;
     }
     set Sent(data: Buffer) {
-        if (data[0] !== 0xf8) return;
-        if (data[1] !== 0x02) return;
-
-        this.#resolver.Sent = data.slice(4);
+        if (data[0] === 0xf8 && data[1] === 0x02) {
+            super.sendData(data);
+            this.#resolver.Sent = data.slice(4);
+        }
 
         if (this.#resolver.Sent.length === 0 && this.Next) {
             this.Next.Sent = data;
@@ -420,7 +462,7 @@ export class NotifyResolver extends BaseResolverV2 {
 
         try {
             const unpacked = this.unpack([data]);
-            return { data: unpacked, response: this.toResponse(unpacked), isNotify: true };
+            return { data: unpacked, response: this.toResponse(unpacked), type: ResponseType.NOTIFY };
         } catch (error: any) {
             logger?.debug(error.message);
         }

@@ -18,7 +18,7 @@ limitations under the License.
 
 
 import { DeviceType, IAPDUResponse, ProtocolV2, TransportConfig } from "./interface";
-import { APDUResolver, BaseResolver, BaseResolverV2, CommandResolver, IResolver, NotifyResolver } from "./resolver";
+import { APDUResolver, BaseResolver, BaseResolverV2, CommandResolver, IResolver, IResponse, NotifyResolver, ResponseType } from "./resolver";
 import { owTool, supported_coin } from "@secux/utility";
 import { communicationData, getBuffer, Send, to_L1_APDU } from "@secux/utility/lib/communication";
 import { Base58 } from "@secux/utility/lib/bs58";
@@ -183,55 +183,58 @@ abstract class ITransport {
     #appendL0: (data: Buffer) => Buffer;
     #resolver: IResolver;
     #isRunning: boolean = false;
-    #lastData: any;
-    #lastResponse: any;
+    #resovled: IResponse | null = null;
+    #error: Error | null = null;
     #packetSize?: number;
     #timeout: number;
-    #error?: Error;
     #sendImage: boolean = false;
 
 
     async #Read(): Promise<Buffer> {
         let isTerminated = false;
-        this.#lastData = undefined;
+        this.#resovled = null;
 
         setTimeout(() => {
-            isTerminated = !this.#lastData;
+            isTerminated = !this.#resovled?.data;
         }, this.#timeout);
 
-        while (!this.#lastData) {
+        //@ts-ignore
+        while (!this.#resovled?.data) {
             await new Promise(resolve => setTimeout(resolve, 1));
 
             if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
         }
 
-        return this.#lastData;
+        //@ts-ignore
+        return this.#resovled.data;
     }
 
     #ReceiveData(data: Buffer) {
         if (data.length === 0) return;
 
-        if (!this.#isRunning) {
-            this.#lastData = data;
+        if (!IResolver.isRunning.call(this.#resolver)) {
+            //@ts-ignore
+            this.#resovled = {
+                data,
+                type: ResponseType.UNKNOWN
+            };
+            return;
         }
 
         try {
-            const obj = IResolver.handleData.call(this.#resolver, data);
-            if (obj.isNotify) {
+            this.#resovled = IResolver.handleData.call(this.#resolver, data);
+            if (this.#resovled.type === ResponseType.NOTIFY) {
                 // wait for notification to start sending image (nifty)
                 this.#sendImage = true;
-                this.OnNotification?.call(undefined, obj.data);
+                this.OnNotification?.call(undefined, this.#resovled.data);
                 return;
             }
-            if (obj.data.length === 0) return;
+            if (this.#resovled.data.length === 0) return;
 
-            this.#lastData = obj.data;
-            this.#lastResponse = obj.response;
-            this.#error = undefined;
+            this.#error = null;
         } catch (error: any) {
             IResolver.resetAll.call(this.#resolver);
-            this.#lastData = undefined;
-            this.#lastResponse = undefined;
+            this.#resovled = null;
             this.#error = error;
         }
 
@@ -270,18 +273,22 @@ abstract class ITransport {
 
         // when signing with image on nifty, it needs to skip the command for image.
         if (this.#version === ITransport.PROTOCOLv2 && isAPDU) {
-            while (this.#lastData[1] !== 0x02) {
+            while (this.#resovled?.type !== ResponseType.APDU) {
                 await new Promise(resolve => setTimeout(resolve, 1));
 
+                if (this.#error) break;
                 if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
             }
         }
 
         if (this.#error) throw this.#error;
-        if (!this.#lastData) throw Error("TransferError: empty response");
+        if (!this.#resovled) throw Error("TransferError: empty response");
 
-        if (this.#version === ITransport.PROTOCOLv2 && this.#resolver.cla !== 0) return this.#lastData.slice(4);
-        return this.#lastData;
+        if (this.#version === ITransport.PROTOCOLv2 && this.#resovled.type === ResponseType.APDU) {
+            return this.#resovled.data.slice(4);
+        }
+
+        return this.#resovled.data;
     }
 
     async #Send(cla: number, ins: number, p1: number = 0, p2: number = 0, data: Buffer = Buffer.alloc(0)): Promise<IAPDUResponse> {
@@ -290,7 +297,7 @@ abstract class ITransport {
 
         await this.Exchange(getBuffer(buf));
 
-        return this.#lastResponse;
+        return this.#resovled!.response;
     }
 
     #buildPacketBuffer(buffer: Buffer) {
