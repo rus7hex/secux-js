@@ -593,7 +593,7 @@ function addLengthPrefixToBuffer(data: Buffer) {
 };
 
 function validateHardenedPath(path: string) {
-    const isHardened = !path.match(/\/\d+\/|\d+$/);
+    const isHardened = !!path.match(/^m(\/\d+')+$/);
 
     if (!isHardened) throw Error(`ArgumentError: accept hardened path only, got ${path}`);
 }
