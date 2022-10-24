@@ -128,11 +128,18 @@ abstract class ITransport {
         }
 
         // prepare command data for image and check if device supported.
-        const { FileDestination } = require("@secux/protocol-device/lib/interface");
+        const { AttachmentType, FileDestination } = require("@secux/protocol-device/lib/interface");
+        const _metadata = {
+            contractAddress: ' ',
+            tokenId: ' ',
+            type: metadata.type ?? AttachmentType.Ethereum,
+            tokenStandard: ' ',
+            ...metadata
+        };
         const dataList = SecuxDeviceNifty.prepareSendImage(
             imageName,
             imageData,
-            metadata,
+            _metadata,
             FileDestination.CONFIRM
         );
 
