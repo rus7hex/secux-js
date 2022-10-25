@@ -25,6 +25,7 @@
   "scripts": {
     "build": "sh ../../build.sh && npx webpack --config ./webpack.dfu.config.js",
     "docs": "npx tsc && jsdoc2md --template ./README.hbs ./lib/protocol-device.js > README.md",
+    "doc:api": "sh ../../api_doc.sh ./src/protocol-device.ts ./lib/protocol-device.js",
     "test:webusb": "npx webpack serve --progress --config ./webpack.config.js --output-path ./__tests__",
     "test:webble": "npx webpack serve --progress --config ./webpack.ble.config.js --output-path ./__tests__",
     "test:webhid": "npx webpack serve --progress --config ./webpack.hid.config.js --output-path ./__tests__",

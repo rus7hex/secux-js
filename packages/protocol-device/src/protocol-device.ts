@@ -47,14 +47,6 @@ class SecuxDevice {
     }
 
     /**
-     * @typedef VersionInfo
-     * @property {number} transportVersion
-     * @property {string} seFwVersion
-     * @property {string} mcuFwVersion
-     * @property {string} bootloaderVersion
-     */
-
-    /**
      * Resolve version information from device.
      * @param {communicationData} response data from device
      * @returns {VersionInfo} object
@@ -100,13 +92,6 @@ class SecuxDevice {
     static prepareGetWalletInfo(): communicationData {
         return Send(0x80, 0xb2, 3);
     }
-
-    /**
-     * @typedef WalletInfo
-     * @property {number} walletIndex
-     * @property {string} walletName
-     * @property {number} walletStatus
-     */
 
     /**
      * Resolve wallet information from device.
@@ -188,6 +173,10 @@ class SecuxDevice {
 class SecuxDeviceNifty {
     static #filenameSize = 48;
 
+    /**
+     * Get wallet information command.
+     * @returns {communicationData} data for sending to device
+     */
     static prepareGetWalletInfo(): communicationData {
         commandForNifty();
 
@@ -197,6 +186,11 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
+    /**
+     * Resolve wallet information from device.
+     * @param {communicationData} response data from device
+     * @returns {NiftyWalletInfo} object
+     */
     static resolveWalletInfo(response: communicationData): { PartNumber: string, SerialNumber: string, DeviceName: string } {
         ow(response, ow_communicationData);
 
@@ -233,6 +227,11 @@ class SecuxDeviceNifty {
         return wrapResult(info);
     }
 
+    /**
+     * Set device name.
+     * @param {string} name custom device name
+     * @returns {communicationData} data for sending to device
+     */
     static prepareSetWalletName(name: string): communicationData {
         commandForNifty();
 
@@ -249,6 +248,10 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
+    /**
+     * Reboot device.
+     * @returns {communicationData} data for sending to device
+     */
     static prepareReboot(): communicationData {
         commandForNifty();
 
@@ -258,6 +261,12 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
+    /**
+     * Execution file command.
+     * @param {FileMode} mode read/write/delete
+     * @param {FileInfo} info object for file
+     * @returns {communicationData} data for sending to device
+     */
     static prepareFileOperation(mode: FileMode, info: FileInfo): communicationData {
         commandForNifty();
 
@@ -308,6 +317,14 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
+    /**
+     * Store image file on device.
+     * @param {string} filename file name
+     * @param {communicationData} file file data
+     * @param {FileAttachment} [attachment] file metadata
+     * @param {FileDestination} destination default: GALLERY
+     * @returns {Array<communicationData>} data for sending to device
+     */
     static prepareSendImage(filename: string, file: communicationData, attachment?: FileAttachment, destination = FileDestination.GALLERY): Array<communicationData> {
         ow(filename, ow.string.nonEmpty);
         ow(file, ow_communicationData);
@@ -343,6 +360,10 @@ class SecuxDeviceNifty {
         ];
     }
 
+    /**
+     * Finish file transmission to unlock touch screen.
+     * @returns {communicationData} data for sending to device
+     */
     static prepareFinishSync(): communicationData {
         commandForNifty();
 
@@ -352,6 +373,11 @@ class SecuxDeviceNifty {
         return toCommunicationData(data);
     }
 
+    /**
+     * Set profile picture on device.
+     * @param {communicationData} file file data
+     * @returns {Array<communicationData>} data for sending to device
+     */
     static prepareUpdateProfileImage(file: communicationData): Array<communicationData> {
         return SecuxDeviceNifty.prepareSendImage(
             "/my_gallery.jpg",
@@ -361,6 +387,11 @@ class SecuxDeviceNifty {
         );
     }
 
+    /**
+     * Remove files on deivce.
+     * @param {string} filename filename or wildcard
+     * @returns {communicationData} data for sending to device
+     */
     static prepareRemoveFromGallery(filename: string): communicationData {
         ow(filename, ow.string.nonEmpty);
 
@@ -375,6 +406,11 @@ class SecuxDeviceNifty {
         );
     }
 
+    /**
+     * Number of files deleted.
+     * @param {communicationData} response data from device
+     * @returns {number} 
+     */
     static resolveFileRemoved(response: communicationData): number {
         ow(response, ow_communicationData);
 
@@ -386,6 +422,10 @@ class SecuxDeviceNifty {
         return data.readUint16LE(2);
     }
 
+    /**
+     * List files stored on device.
+     * @returns {communicationData} data for sending to device
+     */
     static prepareListGalleryFiles(): communicationData {
         return SecuxDeviceNifty.prepareFileOperation(
             FileMode.READ,
@@ -398,6 +438,11 @@ class SecuxDeviceNifty {
         );
     }
 
+    /**
+     * Resolve file list.
+     * @param {communicationData} response data from device
+     * @returns {ListFilesObject} object
+     */
     static resolveFilesInFolder(response: communicationData): { files: Array<string>, resume?: communicationData } {
         ow(response, ow_communicationData);
 
@@ -425,6 +470,12 @@ class SecuxDeviceNifty {
         }
     }
 
+    /**
+     * Arrange gallery on device.
+     * @param {Array<string>} fileList file arranged list
+     * @param {FileDestination} destination default: GALLERY
+     * @returns {Array<communicationData>} data for sending to device
+     */
     static prepareUpdateGalleryTable(fileList: Array<string>, destination = FileDestination.GALLERY): Array<communicationData> {
         ow(fileList, ow.array.maxLength(200).ofType(ow_filename));
 
@@ -446,6 +497,11 @@ class SecuxDeviceNifty {
         ]
     }
 
+    /**
+     * Reset arrangement on device.
+     * @param {FileDestination} destination default: GALLERY
+     * @returns {communicationData} data for sending to device
+     */
     static prepareResetGalleryTable(destination = FileDestination.GALLERY): communicationData {
         return SecuxDeviceNifty.prepareFileOperation(
             FileMode.REMOVE,
@@ -458,6 +514,11 @@ class SecuxDeviceNifty {
         );
     }
 
+    /**
+     * Send file to device.
+     * @param {communicationData} file file data
+     * @returns {Array<communicationData>} data for sending to device
+     */
     static prepareSendFile(file: communicationData): Array<communicationData> {
         commandForNifty();
 
@@ -686,3 +747,116 @@ try {
 } catch (error) {
     // skip plugin injection
 }
+
+
+/**
+ * Data type for transmission.
+ * @typedef {string|Buffer} communicationData
+ */
+
+/**
+ * Wallet status.
+ * @typedef {enum} WalletStatus
+ * @property {number} NotActivated 0
+ * @property {number} Normal 34
+ * @property {number} Hidden 98
+ */
+
+/**
+ * File operations.
+ * @typedef {enum} FileMode
+ * @property {number} ADD 0
+ * @property {number} REMOVE 1
+ * @property {number} READ 2
+ */
+
+/**
+ * File destination.
+ * @typedef {enum} FileDestination
+ * @property {number} SDCARD 0
+ * @property {number} LOGO 1
+ * @property {number} CONFIRM 2
+ * @property {number} GALLERY 3
+ */
+
+/**
+ * File type.
+ * @typedef {enum} FileType
+ * @property {number} png 0
+ * @property {number} bpp1 1
+ * @property {number} bpp2 2
+ * @property {number} bpp4 3
+ * @property {number} wav 4
+ * @property {number} jpg 5
+ * @property {number} hlt 6
+ */
+
+/**
+ * Attachment type for specific chain.
+ * @typedef {enum} AttachmentType
+ * @property {number} Ethereum 1
+ * @property {number} Polygon 2
+ * @property {number} Solana 3
+ * @property {numnber} BSC 4
+ */
+
+/**
+ * Version information from device.
+ * @typedef {object} VersionInfo
+ * @property {number} transportVersion communication protocol version
+ * @property {string} seFwVersion security chip firmware version
+ * @property {string} mcuFwVersion firmware version
+ * @property {string} bootloaderVersion bootloader version
+ */
+
+/**
+ * Wallet information from device.
+ * @typedef {object} WalletInfo
+ * @property {number} walletIndex
+ * @property {string} walletName custom name on deivce
+ * @property {number} walletStatus wallet status
+ */
+
+/**
+ * Options for showing address on device.
+ * @typedef AddressOption
+ * @property {boolean} [needToConfirm] need user interaction or not
+ * @property {number} [chainId] chainId for evm-compatible chain
+ */
+
+/**
+ * Wallet information from device.
+ * @typedef {object} NiftyWalletInfo
+ * @property {string} PartNumber part number on device
+ * @property {string} SerialNumber serial number on device
+ * @property {string} DeviceName custom name on deivce
+ */
+
+/**
+ * Object for file attribute.
+ * @typedef {object} FileInfo
+ * @property {number} size file size
+ * @property {FileDestination} destination file destination
+ * @property {FileType} type file type
+ * @property {string} name file name
+ * @property {FileAttachment} [attachment] file metadata
+ */
+
+/**
+ * Asset's metadata.
+ * @typedef {object} FileAttachment
+ * @property {AttachmentType} type metadata for specific chain
+ * @property {string} contractAddress collection address
+ * @property {string} tokenId asset id
+ * @property {string} assetName asset name
+ * @property {string} collectionName collection name
+ * @property {string} tokenStandard asset based on which standard
+ * @property {string} [uri] asset link
+ */
+
+/**
+ * Object for get files stored on device.
+ * @typedef {object} ListFilesObject
+ * @property {Array<string>} files file list
+ * @property {communicationData} [resume] exist when sending next command to device needed
+ */
