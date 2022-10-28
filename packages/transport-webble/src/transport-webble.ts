@@ -160,11 +160,21 @@ class SecuxWebBLE extends ITransport {
         const timeout = 120000;
         const interval = 5000;
 
-        const payload = Buffer.from([0x70, 0x61, 0x69, 0x72, 0x69, 0x6e, 0x67]);
         const echoTest = async () => {
-            const data = Buffer.from([0xf8, 0x08, ...payload]);
-            const rsp = await this.Exchange(data);
-            return rsp.slice(2);
+            const payload = Buffer.from([0x70, 0x61, 0x69, 0x72, 0x69, 0x6e, 0x67]);
+            const data = Buffer.from([0x80 + 2 + payload.length, 0xf8, 0x08, ...payload]);
+            await this.Write(data);
+
+            let rsp = await this.Read();
+            while (!rsp) {
+                rsp = await this.Read();
+                await new Promise(resolve => setTimeout(resolve, 1));
+            }
+
+            data[1] = 0;
+            if (data.equals(rsp.slice(0, data.length))) return true;
+
+            return false;
         };
 
         for (let i = 0; i < timeout / interval; i++) {
@@ -188,7 +198,7 @@ class SecuxWebBLE extends ITransport {
                     new Promise((resolve) => setTimeout(resolve, interval))
                 ]);
 
-                if (rsp?.equals(payload)) return;
+                if (rsp) return;
             } catch (e) { /* still at pairing state */ }
         }
 
