@@ -30,6 +30,6 @@ mkdir ./tmp
 mv ./lib/*.js ./tmp
 for f in ./tmp/*.js
 do
-    npx terser -c -m --ecma 2017 --toplevel -o "./lib/$(basename $f)" $f
+    npx terser -c --ecma 2017 --toplevel -o "./lib/$(basename $f)" $f
 done
 rm -r ./tmp
