@@ -33,7 +33,7 @@ export const ow_address = ow.string.matches(/^0x[0-9A-Fa-f]{40}$/)
         }
     });
 export const ow_hexString32 = ow.string.matches(/^0x[a-fA-F0-9]{1,64}$/);
-export const ow_gasPriceUnit = ow.any(ow.number.uint32.greaterThanOrEqual(1e9), owTool.prefixedhexString);
+export const ow_gasPriceUnit = ow.any(ow.number.uint32.positive, owTool.prefixedhexString);
 
 
 export interface tx155_base {

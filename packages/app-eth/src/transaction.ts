@@ -23,7 +23,9 @@ import * as rlp from "rlp";
 import { BigNumber } from 'bignumber.js';
 import ow from "ow";
 import { ow_tx1559 } from './interface';
+import { Logger } from "@secux/utility";
 export { getBuilder, ETHTransactionBuilder, EIP1559Builder };
+const logger = Logger?.child({ id: "ethereum" });
 
 
 const EIP1559_TransactionType = Buffer.from([0x02]);
@@ -105,17 +107,17 @@ class ETHTransactionBuilder {
 
         if (tx.gasPrice) {
             const gasPrice = getValue(tx.gasPrice);
-            if (gasPrice.lt(1e9)) throw Error(`Minimal gas price is 1 Gwei, but got ${gasPrice.div(1e9).toString()} Gwei.`);
+            if (gasPrice.lt(1)) logger?.warn(`Minimal gas price is 1 wei, but got ${gasPrice.toString()} wei.`);
         }
 
         if (tx.maxPriorityFeePerGas) {
             const priorityFee = getValue(tx.maxPriorityFeePerGas);
-            if (priorityFee.lt(1)) throw Error(`[maxPriorityFeePerGas] Minimal priority fee is 1 wei.`);
+            if (priorityFee.lt(1)) logger?.warn(`[maxPriorityFeePerGas] Minimal priority fee is 1 wei.`);
         }
 
         if (tx.maxFeePerGas) {
             const maxFee = getValue(tx.maxFeePerGas);
-            if (maxFee.lt(1e9)) throw Error(`[maxFeePerGas] Minimal fee is 1 Gwei, but got ${maxFee.div(1e9).toString()} Gwei.`);
+            if (maxFee.lt(1)) logger?.warn(`[maxFeePerGas] Minimal fee is 1 wei, but got ${maxFee.toString()} wei.`);
         }
 
         // According to Ethereum Yellow Paper(https://ethereum.github.io/yellowpaper/paper.pdf)
@@ -134,7 +136,7 @@ class ETHTransactionBuilder {
             }
         }
         const gasLimit = getValue(tx.gasLimit);
-        if (gasLimit.lt(estimatedGas)) console.warn(`Minimal gas is ${estimatedGas}, but got ${gasLimit.toString()}.`);
+        if (gasLimit.lt(estimatedGas)) logger?.warn(`Minimal gas is ${estimatedGas}, but got ${gasLimit.toString()}.`);
     }
 
     /**
