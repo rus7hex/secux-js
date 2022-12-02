@@ -71,6 +71,7 @@ export type AccountInfo = {
     path: string,
     chainId: number | string | undefined,
     balance: string,
+    symbol?: string,
     contract?: string,
     decimal?: number,
 }

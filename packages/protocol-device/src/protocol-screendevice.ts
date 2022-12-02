@@ -17,7 +17,7 @@ limitations under the License.
 */
 
 
-import { BigIntToBuffer, buildPathBuffer, owTool } from "@secux/utility";
+import { BigIntToBuffer, buildPathBuffer, checkFWVersion, FirmwareType, owTool } from "@secux/utility";
 import {
     communicationData, getBuffer, ow_communicationData, Send, StatusCode, toAPDUResponse, TransportStatusError,
     wrapResult
@@ -30,6 +30,9 @@ import { BigNumber } from 'bignumber.js';
 import ow from "ow";
 
 
+const AccountSymbolField = {
+    crypto: "2.25",
+}
 
 /**
  * SecuX protocol for device with screen
@@ -133,8 +136,19 @@ export class SecuxScreenDevice {
         const purpose = checkHardened(rsp.data.readUInt32LE(4));
         const coinType = checkHardened(rsp.data.readUInt32LE(8));
         const account = checkHardened(rsp.data.readUInt32LE(12));
-        const balance = Buffer.from(rsp.data.slice(16, 48).filter(x => x !== 0)).toString("ascii");
         const name = Buffer.from(rsp.data.slice(48, 64).filter(x => x !== 0)).toString("ascii");
+
+        let balance = '';
+        const balanceBuffer = rsp.data.slice(16, 48);
+        if (balanceBuffer[0] <= 0x7f) {
+            balance = Buffer.from(balanceBuffer.filter(x => x !== 0)).toString("ascii");
+        }
+        else {
+            // [FLAG:1][amount:24][symbol:7]
+            const amount = balanceBuffer.slice(1, -7).readUint32LE(0);
+            const symbol = Buffer.from(balanceBuffer.slice(-7).filter(x => x !== 0)).toString("ascii");
+            balance = symbol ? `${amount} ${symbol}` : amount.toString();
+        }
 
         const info: AccountInfo = {
             name,
@@ -170,6 +184,7 @@ export class SecuxScreenDevice {
         chainId: number | string | undefined,
         name?: string,
         balance?: string,
+        symbol?: string,
         contract?: string,
         decimal?: number,
     }): Buffer {
@@ -184,10 +199,30 @@ export class SecuxScreenDevice {
 
         const accountData: Array<number> = [];
         if (info.name && info.balance) {
-            accountData.push(
-                ...asciiToArray(info.balance, 32),
-                ...asciiToArray(info.name, 16),
-            );
+            let [amount, symbol] = info.balance.split(' ');
+            symbol = info.symbol || symbol || '';
+
+            try {
+                const { ITransport } = require("@secux/transport");
+                //@ts-ignore
+                checkFWVersion(FirmwareType.mcu, AccountSymbolField[ITransport.deviceType], ITransport.mcuVersion);
+
+                accountData.push(
+                    0xff,
+                    ...BigIntToBuffer(amount, 24, true),
+                    ...asciiToArray(symbol, 7),
+                );
+            } catch (error) {
+                // 1. Transport library not imported
+                // 2. Firmware version too old
+                // 3. Amount bigger than 24 bytes
+
+                accountData.push(
+                    ...asciiToArray(info.balance, 32),
+                );
+            }
+
+            accountData.push(...asciiToArray(info.name, 16));
         }
 
         const chainId = new BigNumber(info.chainId ?? 0);
