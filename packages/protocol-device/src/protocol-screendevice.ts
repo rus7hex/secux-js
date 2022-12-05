@@ -131,12 +131,13 @@ export class SecuxScreenDevice {
         const rsp = toAPDUResponse(getBuffer(response));
         if (rsp.status !== StatusCode.SUCCESS) throw new TransportStatusError(rsp.status);
 
-        const isToken = rsp.data.readUInt16LE(0);
+        const isToken = rsp.data.readUInt8(0);
         const chainId = rsp.data.readUInt16LE(2);
         const purpose = checkHardened(rsp.data.readUInt32LE(4));
         const coinType = checkHardened(rsp.data.readUInt32LE(8));
         const account = checkHardened(rsp.data.readUInt32LE(12));
         const name = Buffer.from(rsp.data.slice(48, 64).filter(x => x !== 0)).toString("ascii");
+        const decimal = rsp.data.readUInt8(64 + 42);
 
         let balance = '';
         const balanceBuffer = rsp.data.slice(16, 48);
@@ -145,21 +146,22 @@ export class SecuxScreenDevice {
         }
         else {
             // [FLAG:1][amount:24][symbol:7]
-            const amount = balanceBuffer.slice(1, -7).readUint32LE(0);
+            const hexValue = balanceBuffer.slice(1, -7).reverse().toString("hex");
+            const amount = BigNumber(`0x${hexValue}`).div(`1e${decimal}`).toString(10);
             const symbol = Buffer.from(balanceBuffer.slice(-7).filter(x => x !== 0)).toString("ascii");
-            balance = symbol ? `${amount} ${symbol}` : amount.toString();
+            balance = symbol ? `${amount} ${symbol}` : amount;
         }
 
         const info: AccountInfo = {
             name,
             path: `m/${purpose}/${coinType}/${account}`,
             chainId,
-            balance
+            balance,
+            decimal
         };
 
         if (isToken) {
             info.contract = Buffer.from(rsp.data.slice(64, 64 + 42).filter(x => x !== 0)).toString("ascii");
-            info.decimal = rsp.data.readInt8(64 + 42);
         }
 
         if (chainId === 0xffff) {
@@ -169,7 +171,6 @@ export class SecuxScreenDevice {
 
             try {
                 const chainId = rsp.data.readBigUInt64LE(offset);
-                console.log(chainId.toString(16));
                 if (chainId !== BigInt(0)) info.chainId = `0x${chainId.toString(16)}`;
             } catch (error) {
                 // do nothing
@@ -188,18 +189,10 @@ export class SecuxScreenDevice {
         contract?: string,
         decimal?: number,
     }): Buffer {
-        const isToken = (info.contract) ? 1 : 0;
-
-        // decimal field is defined only on set account command.
-        const tokenData = new Uint8Array(42 + (info.decimal === undefined ? 0 : 1));
-        if (isToken) {
-            tokenData.set(asciiToArray(info.contract!, 42));
-            if (info.decimal) tokenData[42] = info.decimal;
-        }
-
         const accountData: Array<number> = [];
         if (info.name && info.balance) {
             let [amount, symbol] = info.balance.split(' ');
+            amount = BigNumber(amount).times(`1e${info.decimal}`).toFixed(0, 1);
             symbol = info.symbol || symbol || '';
 
             try {
@@ -225,10 +218,17 @@ export class SecuxScreenDevice {
             accountData.push(...asciiToArray(info.name, 16));
         }
 
+        const isToken = (info.contract) ? 1 : 0;
+
+        // decimal field is defined only on set account command.
+        const tokenData = new Uint8Array(42 + (info.decimal === undefined ? 0 : 1));
+        if (isToken) tokenData.set(asciiToArray(info.contract!, 42));
+        if (info.decimal) tokenData[42] = info.decimal;
+
         const chainId = new BigNumber(info.chainId ?? 0);
         if (chainId.lte(0xffff)) {
             return Buffer.from([
-                (info.contract) ? 1 : 0, 0x00,
+                isToken, 0x00,
                 ...BigIntToBuffer(info.chainId ?? 0, 2, true),
                 ...buildPathBuffer(info.path, 3).pathBuffer,
                 ...accountData,
@@ -239,7 +239,7 @@ export class SecuxScreenDevice {
         checkFwForUint64ChainId();
 
         return Buffer.from([
-            (info.contract) ? 1 : 0, 0x00,
+            isToken, 0x00,
             0xff, 0xff,
             ...buildPathBuffer(info.path, 3).pathBuffer,
             ...accountData,
