@@ -137,19 +137,21 @@ export class SecuxScreenDevice {
         const coinType = checkHardened(rsp.data.readUInt32LE(8));
         const account = checkHardened(rsp.data.readUInt32LE(12));
         const name = Buffer.from(rsp.data.slice(48, 64).filter(x => x !== 0)).toString("ascii");
-        const decimal = rsp.data.readUInt8(64 + 42);
+        let decimal = rsp.data.readUInt8(64 + 42);
 
-        let balance = '';
+        let balance = '', symbol = '';
         const balanceBuffer = rsp.data.slice(16, 48);
         if (balanceBuffer[0] <= 0x7f) {
-            balance = Buffer.from(balanceBuffer.filter(x => x !== 0)).toString("ascii");
+            [balance, symbol] = Buffer.from(balanceBuffer.filter(x => x !== 0)).toString("ascii").split(' ');
+            //@ts-ignore
+            decimal = decimal || undefined;
+            if (decimal) balance = BigNumber(balance).times(`1e${decimal}`).toFixed(0, 1);
         }
         else {
             // [FLAG:1][amount:24][symbol:7]
             const hexValue = balanceBuffer.slice(1, -7).reverse().toString("hex");
-            const amount = BigNumber(`0x${hexValue}`).div(`1e${decimal}`).toString(10);
-            const symbol = Buffer.from(balanceBuffer.slice(-7).filter(x => x !== 0)).toString("ascii");
-            balance = symbol ? `${amount} ${symbol}` : amount;
+            balance = BigNumber(`0x${hexValue}`).toString(10);
+            symbol = Buffer.from(balanceBuffer.slice(-7).filter(x => x !== 0)).toString("ascii");
         }
 
         const info: AccountInfo = {
@@ -157,6 +159,7 @@ export class SecuxScreenDevice {
             path: `m/${purpose}/${coinType}/${account}`,
             chainId,
             balance,
+            symbol,
             decimal
         };
 
@@ -189,12 +192,9 @@ export class SecuxScreenDevice {
         contract?: string,
         decimal?: number,
     }): Buffer {
+        const isToken = (info.contract) ? 1 : 0;
         const accountData: Array<number> = [];
         if (info.name && info.balance) {
-            let [amount, symbol] = info.balance.split(' ');
-            amount = BigNumber(amount).times(`1e${info.decimal}`).toFixed(0, 1);
-            symbol = info.symbol || symbol || '';
-
             try {
                 const { ITransport } = require("@secux/transport");
                 //@ts-ignore
@@ -202,23 +202,32 @@ export class SecuxScreenDevice {
 
                 accountData.push(
                     0xff,
-                    ...BigIntToBuffer(amount, 24, true),
-                    ...asciiToArray(symbol, 7),
+                    ...BigIntToBuffer(info.balance, 24, true),
+                    ...asciiToArray(info.symbol!, 7),
                 );
-            } catch (error) {
+            }
+            catch (error) {
                 // 1. Transport library not imported
                 // 2. Firmware version too old
                 // 3. Amount bigger than 24 bytes
 
-                accountData.push(
-                    ...asciiToArray(info.balance, 32),
-                );
+                let amount = BigNumber(info.balance).div(`1e${info.decimal}`).toString(10);
+                if (isToken) {
+                    const exceed = 32 - amount.length - info.symbol!.length - 1;
+                    if (exceed < 0) amount = amount.slice(0, exceed);
+                    accountData.push(
+                        ...asciiToArray(`${amount} ${info.symbol!}`, 32),
+                    );
+                }
+                else {
+                    accountData.push(
+                        ...asciiToArray(amount, 32),
+                    );
+                }
             }
 
             accountData.push(...asciiToArray(info.name, 16));
         }
-
-        const isToken = (info.contract) ? 1 : 0;
 
         // decimal field is defined only on set account command.
         const tokenData = new Uint8Array(42 + (info.decimal === undefined ? 0 : 1));
@@ -383,7 +392,7 @@ function checkHardened(value: number) {
 
 function asciiToArray(str: string, alloc: number) {
     const chars = new Uint8Array(alloc);
-    for (let i = 0; i < str.length; i++) {
+    for (let i = 0; i < Math.min(str.length, alloc); i++) {
         chars[i] = str.charCodeAt(i);
     }
 
