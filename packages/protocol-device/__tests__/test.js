@@ -227,7 +227,7 @@ export function test(GetDevice) {
         });
     });
 
-    describe.only("SecuxScreenDevice", () => {
+    describe("SecuxScreenDevice", () => {
         let addInfo = [];
         describe("SecuxScreenDevice.SetAccount()", () => {
             describe("BTC Account", () => {
