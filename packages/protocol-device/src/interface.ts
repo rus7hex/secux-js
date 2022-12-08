@@ -71,24 +71,28 @@ export type AccountInfo = {
     path: string,
     chainId: number | string | undefined,
     balance: string,
+    symbol: string,
     contract?: string,
     decimal?: number,
 }
 
-export const ow_AccountNormal = ow.object.exactShape({
+export const ow_AccountNormal = ow.object.partialShape({
     name: ow_accountName,
     path: ow_AccountPath,
     chainId: ow.any(ow.undefined, ow_chainId),
-    balance: ow.string,
+    balance: ow.any(owTool.numberString, owTool.prefixedhexString),
+    symbol: ow.string.nonEmpty,
+    decimal: ow.number.uint8,
 });
 
-export const ow_AccountToken = ow.object.exactShape({
+export const ow_AccountToken = ow.object.partialShape({
     name: ow_accountName,
     path: ow_AccountPath,
     chainId: ow.any(ow.undefined, ow_chainId),
-    balance: ow.string,
+    balance: ow.any(owTool.numberString, owTool.prefixedhexString),
+    symbol: ow.string.nonEmpty,
     contract: owTool.hashString,
-    decimal: ow.number,
+    decimal: ow.number.uint8,
 });
 
 export type DeleteOption = {

@@ -17,7 +17,7 @@ limitations under the License.
 */
 
 
-import { BigIntToBuffer, buildPathBuffer, owTool } from "@secux/utility";
+import { BigIntToBuffer, buildPathBuffer, checkFWVersion, FirmwareType, owTool } from "@secux/utility";
 import {
     communicationData, getBuffer, ow_communicationData, Send, StatusCode, toAPDUResponse, TransportStatusError,
     wrapResult
@@ -30,6 +30,9 @@ import { BigNumber } from 'bignumber.js';
 import ow from "ow";
 
 
+const AccountSymbolField = {
+    crypto: "2.25",
+}
 
 /**
  * SecuX protocol for device with screen
@@ -128,24 +131,40 @@ export class SecuxScreenDevice {
         const rsp = toAPDUResponse(getBuffer(response));
         if (rsp.status !== StatusCode.SUCCESS) throw new TransportStatusError(rsp.status);
 
-        const isToken = rsp.data.readUInt16LE(0);
+        const isToken = rsp.data.readUInt8(0);
         const chainId = rsp.data.readUInt16LE(2);
         const purpose = checkHardened(rsp.data.readUInt32LE(4));
         const coinType = checkHardened(rsp.data.readUInt32LE(8));
         const account = checkHardened(rsp.data.readUInt32LE(12));
-        const balance = Buffer.from(rsp.data.slice(16, 48).filter(x => x !== 0)).toString("ascii");
         const name = Buffer.from(rsp.data.slice(48, 64).filter(x => x !== 0)).toString("ascii");
+        let decimal = rsp.data.readUInt8(64 + 42);
+
+        let balance = '', symbol = '';
+        const balanceBuffer = rsp.data.slice(16, 48);
+        if (balanceBuffer[0] <= 0x7f) {
+            [balance, symbol] = Buffer.from(balanceBuffer.filter(x => x !== 0)).toString("ascii").split(' ');
+            //@ts-ignore
+            decimal = decimal || undefined;
+            if (decimal) balance = BigNumber(balance).times(`1e${decimal}`).toFixed(0, 1);
+        }
+        else {
+            // [FLAG:1][amount:24][symbol:7]
+            const hexValue = balanceBuffer.slice(1, -7).reverse().toString("hex");
+            balance = BigNumber(`0x${hexValue}`).toString(10);
+            symbol = Buffer.from(balanceBuffer.slice(-7).filter(x => x !== 0)).toString("ascii");
+        }
 
         const info: AccountInfo = {
             name,
             path: `m/${purpose}/${coinType}/${account}`,
             chainId,
-            balance
+            balance,
+            symbol,
+            decimal
         };
 
         if (isToken) {
             info.contract = Buffer.from(rsp.data.slice(64, 64 + 42).filter(x => x !== 0)).toString("ascii");
-            info.decimal = rsp.data.readInt8(64 + 42);
         }
 
         if (chainId === 0xffff) {
@@ -155,7 +174,6 @@ export class SecuxScreenDevice {
 
             try {
                 const chainId = rsp.data.readBigUInt64LE(offset);
-                console.log(chainId.toString(16));
                 if (chainId !== BigInt(0)) info.chainId = `0x${chainId.toString(16)}`;
             } catch (error) {
                 // do nothing
@@ -170,30 +188,56 @@ export class SecuxScreenDevice {
         chainId: number | string | undefined,
         name?: string,
         balance?: string,
+        symbol?: string,
         contract?: string,
         decimal?: number,
     }): Buffer {
         const isToken = (info.contract) ? 1 : 0;
+        const accountData: Array<number> = [];
+        if (info.name && info.balance) {
+            try {
+                const { ITransport } = require("@secux/transport");
+                //@ts-ignore
+                checkFWVersion(FirmwareType.mcu, AccountSymbolField[ITransport.deviceType], ITransport.mcuVersion);
+
+                accountData.push(
+                    0xff,
+                    ...BigIntToBuffer(info.balance, 24, true),
+                    ...asciiToArray(info.symbol!, 7),
+                );
+            }
+            catch (error) {
+                // 1. Transport library not imported
+                // 2. Firmware version too old
+                // 3. Amount bigger than 24 bytes
+
+                let amount = BigNumber(info.balance).div(`1e${info.decimal}`).toString(10);
+                if (isToken) {
+                    const exceed = 32 - amount.length - info.symbol!.length - 1;
+                    if (exceed < 0) amount = amount.slice(0, exceed);
+                    accountData.push(
+                        ...asciiToArray(`${amount} ${info.symbol!}`, 32),
+                    );
+                }
+                else {
+                    accountData.push(
+                        ...asciiToArray(amount, 32),
+                    );
+                }
+            }
+
+            accountData.push(...asciiToArray(info.name, 16));
+        }
 
         // decimal field is defined only on set account command.
         const tokenData = new Uint8Array(42 + (info.decimal === undefined ? 0 : 1));
-        if (isToken) {
-            tokenData.set(asciiToArray(info.contract!, 42));
-            if (info.decimal) tokenData[42] = info.decimal;
-        }
-
-        const accountData: Array<number> = [];
-        if (info.name && info.balance) {
-            accountData.push(
-                ...asciiToArray(info.balance, 32),
-                ...asciiToArray(info.name, 16),
-            );
-        }
+        if (isToken) tokenData.set(asciiToArray(info.contract!, 42));
+        if (info.decimal) tokenData[42] = info.decimal;
 
         const chainId = new BigNumber(info.chainId ?? 0);
         if (chainId.lte(0xffff)) {
             return Buffer.from([
-                (info.contract) ? 1 : 0, 0x00,
+                isToken, 0x00,
                 ...BigIntToBuffer(info.chainId ?? 0, 2, true),
                 ...buildPathBuffer(info.path, 3).pathBuffer,
                 ...accountData,
@@ -204,7 +248,7 @@ export class SecuxScreenDevice {
         checkFwForUint64ChainId();
 
         return Buffer.from([
-            (info.contract) ? 1 : 0, 0x00,
+            isToken, 0x00,
             0xff, 0xff,
             ...buildPathBuffer(info.path, 3).pathBuffer,
             ...accountData,
@@ -348,7 +392,7 @@ function checkHardened(value: number) {
 
 function asciiToArray(str: string, alloc: number) {
     const chars = new Uint8Array(alloc);
-    for (let i = 0; i < str.length; i++) {
+    for (let i = 0; i < Math.min(str.length, alloc); i++) {
         chars[i] = str.charCodeAt(i);
     }
 
