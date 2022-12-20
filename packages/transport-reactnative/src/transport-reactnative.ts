@@ -67,12 +67,7 @@ class SecuxReactNativeBLE extends ITransport {
     static async Create(deviceId: string, OnConnected: Function = callback, OnDisconnected: DeviceCallback = callback, timeout: number = 10000): Promise<SecuxReactNativeBLE> {
         await bleEnabled();
 
-        const connect = this.bleManager.connectToDevice(deviceId);
-        const timer = new Promise(res => setTimeout(res, timeout)).then(() => undefined);
-        const device = await Promise.race([connect, timer]);
-
-        if (!device) throw Error("Please turn on bluetooth on your SecuX device.");
-
+        const device = await this.bleManager.connectToDevice(deviceId, { timeout, autoConnect: true });
         return new SecuxReactNativeBLE(device, OnConnected, OnDisconnected);
     }
 
@@ -88,7 +83,6 @@ class SecuxReactNativeBLE extends ITransport {
         }
 
         this.#device.onDisconnected((err: BleError | null, device: Device) => {
-            console.log('in handle disconnect');
             if (!err) {
                 this.#OnDisconnected(this.#device);
             } else {
