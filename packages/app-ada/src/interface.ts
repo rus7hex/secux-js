@@ -62,6 +62,21 @@ export enum AddressType {
     __LENGTH
 }
 
+export const NetworkInfo = Object.freeze({
+    mainnet: {
+        id: 1,
+        protocol: 764824073
+    },
+    preview: {
+        id: 0,
+        protocol: 2
+    },
+    preprod: {
+        id: 0,
+        protocol: 1
+    }
+});
+
 export type PointerOption = {
     slot: number,
     txIndex: number,
@@ -77,7 +92,8 @@ export const ow_PointerOption = ow.object.exactShape({
 export type AddressOption = {
     addressIndex?: number,
     stakeIndex?: number,
-    pointer?: PointerOption;
+    pointer?: PointerOption,
+    network?: typeof NetworkInfo.mainnet
 };
 
 export const ow_AddressOption = ow.object.partialShape({
@@ -174,6 +190,7 @@ export const ow_stakeOption = ow.object.exactShape({
 export interface unstakeOption extends baseOption {
     stakeIndex?: number;
     withdrawAmount?: number | string;
+    network?: typeof NetworkInfo.mainnet;
 }
 
 export const ow_unstakeOption = ow.object.exactShape({
@@ -184,6 +201,7 @@ export const ow_unstakeOption = ow.object.exactShape({
 
 export interface withdrawOption extends baseOption {
     stakeIndex?: number;
+    network?: typeof NetworkInfo.mainnet;
 }
 
 export const ow_withdrawOption = ow.object.exactShape({

@@ -21,8 +21,9 @@ import { cardano } from "./load_lib";
 const cardanoV1 = require("cardano-crypto.js");
 import { communicationData, getBuffer, ow_communicationData, toCommunicationData, wrapResult } from "@secux/utility/lib/communication";
 import {
-    AddressOption, AddressType, ow_AddressOption, ow_fullPath, ow_path, ow_PointerOption, ow_poolHash,
-    ow_signOption, ow_stakeInput, ow_stakeOption, ow_txInput, ow_txOutput, ow_unstakeOption, ow_withdrawOption, ow_xpublickey, signOption, stakeInput, stakeOption, txInput, txOutput, unstakeOption, withdrawOption
+    AddressOption, AddressType, NetworkInfo, ow_AddressOption, ow_fullPath, ow_path, ow_PointerOption, ow_poolHash,
+    ow_signOption, ow_stakeInput, ow_stakeOption, ow_txInput, ow_txOutput, ow_unstakeOption, ow_withdrawOption,
+    ow_xpublickey, signOption, stakeInput, stakeOption, txInput, txOutput, unstakeOption, withdrawOption
 } from "./interface";
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
 import { EllipticCurve, TransactionType } from "@secux/protocol-transaction/lib/interface";
@@ -60,6 +61,7 @@ class SecuxADA {
         const utxoKey = pubkey.derive(0).derive(option?.addressIndex ?? 0);
         const stakeKey = pubkey.derive(2).derive(option?.stakeIndex ?? 0);
 
+        const network = option?.network ?? NetworkInfo.mainnet;
         switch (type) {
             case AddressType.BOOTSTRAPv1:
                 const { pbkdf2Sync } = require("pbkdf2");
@@ -70,25 +72,25 @@ class SecuxADA {
                     ed25519key,
                     passphrase,
                     1,
-                    cardano.NetworkInfo.mainnet().protocol_magic()
+                    network.protocol
                 ));
 
             case AddressType.BOOTSTRAPv2:
                 return cardano.ByronAddress.icarus_from_key(
                     utxoKey,
-                    cardano.NetworkInfo.mainnet().protocol_magic()
+                    network.protocol
                 ).to_base58();
 
             case AddressType.BASE:
                 return cardano.BaseAddress.new(
-                    cardano.NetworkInfo.mainnet().network_id(),
+                    network.id,
                     cardano.StakeCredential.from_keyhash(utxoKey.to_raw_key().hash()),
                     cardano.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash())
                 ).to_address().to_bech32();
 
             case AddressType.ENTERPRISE:
                 return cardano.EnterpriseAddress.new(
-                    cardano.NetworkInfo.mainnet().network_id(),
+                    network.id,
                     cardano.StakeCredential.from_keyhash(utxoKey.to_raw_key().hash())
                 ).to_address().to_bech32();
 
@@ -96,7 +98,7 @@ class SecuxADA {
                 const params = option!.pointer;
                 ow(params, ow_PointerOption);
                 return cardano.PointerAddress.new(
-                    cardano.NetworkInfo.mainnet().network_id(),
+                    network.id,
                     cardano.StakeCredential.from_keyhash(utxoKey.to_raw_key().hash()),
                     cardano.Pointer.new(
                         params.slot,
@@ -107,7 +109,7 @@ class SecuxADA {
 
             case AddressType.REWARD:
                 return cardano.RewardAddress.new(
-                    cardano.NetworkInfo.mainnet().network_id(),
+                    network.id,
                     cardano.StakeCredential.from_keyhash(stakeKey.to_raw_key().hash())
                 ).to_address().to_bech32();
 
@@ -222,19 +224,21 @@ class SecuxADA {
         const txObj = JSON.parse(getBuffer(serialized).toString());
         const signatures = SecuxADA.resolveSignatureList(response);
 
-        if (signatures.length !== txObj.publickeys.length) {
-            throw Error(`expect ${txObj.publickeys.length} signature(s), but got ${signatures.length}`);
+        const paths: Array<string> = Object.keys(txObj.pathMap);
+        if (signatures.length !== paths.length) {
+            throw Error(`expect ${paths.length} signature(s), but got ${signatures.length}`);
         }
 
         const txbody = cardano.TransactionBody.from_bytes(Buffer.from(txObj.rawTx, "hex"));
         const vkeys = cardano.Vkeywitnesses.new();
-        for (let i = 0; i < txObj.publickeys.length; i++) {
-            const publickey = cardano.PublicKey.from_bytes(convertToBuffer(txObj.publickeys[i]));
+        for (let i = 0; i < paths.length; i++) {
+            const pubkeyHex = txObj.pathMap[paths[i]];
+            const publickey = cardano.PublicKey.from_bytes(convertToBuffer(pubkeyHex));
             const signature = cardano.Ed25519Signature.from_hex(signatures[i]);
 
             if (!publickey.verify(cardano.hash_transaction(txbody).to_bytes(), signature)) {
-                logger?.error(`signature error, got signature ${signatures[i]} and publickey ${txObj.publickeys[i]}`);
-                throw Error(`Signature error #${i}`);
+                logger?.error(`signature error, got signature ${signatures[i]} and publickey ${pubkeyHex}`);
+                throw Error(`Signature error on path ${paths[i]}`);
             }
 
             vkeys.add(cardano.Vkeywitness.new(
@@ -250,7 +254,7 @@ class SecuxADA {
         if (!tx.is_valid()) {
             logger?.debug(`Cannot finalize transaction, tx: ${txObj.rawTx}\n`);
             for (let i = 0; i < signatures.length; i++) {
-                logger?.debug(`signature#${i}: ${signatures[i]}`);
+                logger?.debug(`path: ${paths[i]}\npubkey: ${txObj.pathMap[paths[i]]}\nsignature: ${signatures[i]}`);
             }
 
             throw Error("Cannot finalize transaction.");
@@ -350,7 +354,7 @@ class SecuxADA {
             const withdraws = cardano.Withdrawals.new();
             withdraws.insert(
                 cardano.RewardAddress.new(
-                    cardano.NetworkInfo.mainnet().network_id(),
+                    option?.network?.id ?? NetworkInfo.mainnet.id,
                     stakeCert
                 ),
                 cardano.BigNum.from_str(option.withdrawAmount.toString(10))
@@ -394,7 +398,7 @@ class SecuxADA {
         const withdraws = cardano.Withdrawals.new();
         withdraws.insert(
             cardano.RewardAddress.new(
-                cardano.NetworkInfo.mainnet().network_id(),
+                option?.network?.id ?? NetworkInfo.mainnet.id,
                 stakeCert
             ),
             cardano.BigNum.from_str(amount.toString(10))
@@ -568,9 +572,17 @@ function CreateRawTransaction(builder: any, option?: signOption) {
 }
 
 function CreateCommandData(paths: Array<string>, publickeys: Array<Buffer>, rawTx: Buffer): { commandData: communicationData, serialized: communicationData } {
-    const txs = paths.map(x => rawTx);
+    const pathMap: { [path: string]: string } = {};
+    for (let i = 0; i < paths.length; i++) {
+        if (pathMap[paths[i]]) continue;
+
+        pathMap[paths[i]] = publickeys[i].toString("hex");
+    }
+
+    const pathSet = Object.keys(pathMap);
+    const txs = pathSet.map(_ => rawTx);
     const commandData = SecuxTransactionTool.signRawTransactionList(
-        paths, txs, undefined,
+        pathSet, txs, undefined,
         {
             tp: TransactionType.NORMAL,
             curve: EllipticCurve.ED25519_ADA,
@@ -580,7 +592,7 @@ function CreateCommandData(paths: Array<string>, publickeys: Array<Buffer>, rawT
 
     const txObj = {
         rawTx: rawTx.toString("hex"),
-        publickeys: publickeys.map(x => x.toString("hex"))
+        pathMap
     };
     const serialized = Buffer.from(JSON.stringify(txObj));
 

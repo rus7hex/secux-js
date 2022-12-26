@@ -1,4 +1,5 @@
 const { SecuxADA, AddressType } = require("@secux/app-ada");
+const { NetworkInfo } = require("@secux/app-ada/lib/interface");
 const cardano = require("cardano-crypto.js");
 const { assert } = require("chai");
 
@@ -227,4 +228,51 @@ export function test(GetDevice) {
             }).timeout(20000);
         });
     });
+
+    describe("broadcast", () => {
+        const path = "m/1852'/1815'/0'";
+
+        it("transfer", async () => {
+            const address = await GetDevice().getAddress(path, AddressType.BASE, { network: NetworkInfo.preview });
+
+            const api = "https://cardano-preview.blockfrost.io/api/v0";
+            const project_id = "previewM8HajjWRhsvXQ76DMbuMOTKFrDCyqoQb";
+
+            const response = await fetch(
+                `${api}/addresses/${address}/utxos`,
+                {
+                    method: "GET",
+                    headers: {
+                        project_id,
+                    }
+                }
+            ).then(x => x.json());
+
+            const inputs = response.map(utxo => ({
+                path,
+                txId: utxo.tx_hash,
+                index: utxo.output_index,
+                amount: utxo.amount[0].quantity,
+            }));
+
+            const receipt = "addr_test1qqlp9x89h2d7hukhrdr86d7exv9q4mngjjypqq64vdmnfda4lrrpt832a8rw0u8wyn5uk2lszhl5vd4rftl33xx3ncdshrafpj";
+            const { raw_tx } = await GetDevice().sign(
+                inputs,
+                { address: receipt, amount: 1000000 },
+                { changeAddress: address }
+            );
+
+            await fetch(
+                `${api}/tx/submit`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/cbor",
+                        project_id,
+                    },
+                    body: Buffer.from(raw_tx, "base64"),
+                }
+            );
+        }).timeout(20000);
+    })
 }
