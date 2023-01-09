@@ -19,7 +19,9 @@ limitations under the License.
 
 require("./shim.js");
 const { Platform } = require("react-native");
-import { Device, BleError, Characteristic, BleManager, State, ScanCallbackType, ScanMode, Service } from "react-native-ble-plx";
+import {
+    Device, BleError, Characteristic, BleManager, State, ScanCallbackType, ScanMode, Service, Subscription
+} from "react-native-ble-plx";
 import { ITransport } from "@secux/transport";
 import { DeviceType } from "@secux/transport/lib/interface";
 import { getBuffer, StatusCode, TransportStatusError } from "@secux/utility/lib/communication";
@@ -38,7 +40,7 @@ class SecuxReactNativeBLE extends ITransport {
     static #bleManager: BleManager;
     static #scanning: boolean;
 
-    #device: Device;
+    #device?: Device;
     #mcuVersion: string = '';
     #seVersion: string = '';
     #type?: DeviceType;
@@ -46,6 +48,7 @@ class SecuxReactNativeBLE extends ITransport {
     #writer?: Characteristic;
     #OnConnected: Function;
     #OnDisconnected: DeviceCallback;
+    #disconnectEvent?: Subscription;
 
 
     constructor(device: Device, OnConnected: Function = callback, OnDisconnected: DeviceCallback = callback) {
@@ -75,16 +78,16 @@ class SecuxReactNativeBLE extends ITransport {
      * Connect to Secux Device by bluetooth on mobile
      */
     async Connect() {
-        if (await this.#device.isConnected()) {
+        if (await this.#device!.isConnected()) {
             this.#OnConnected();
         }
         else {
             throw "Device unavailable";
         }
 
-        this.#device.onDisconnected((err: BleError | null, device: Device) => {
+        this.#disconnectEvent = this.#device!.onDisconnected((err: BleError | null, device: Device) => {
             if (!err) {
-                this.#OnDisconnected(this.#device);
+                this.#OnDisconnected(this.#device!);
             } else {
                 throw err;
             }
@@ -96,7 +99,7 @@ class SecuxReactNativeBLE extends ITransport {
         this.packetSize = uuid.PACKET;
         this.version = uuid.PROTOCOL;
 
-        console.log(`device name: ${this.#device.name}`);
+        console.log(`device name: ${this.#device!.name}`);
         console.log(`device type: ${uuid.TYPE}`);
 
         ITransport.deviceType = uuid.TYPE;
@@ -111,8 +114,8 @@ class SecuxReactNativeBLE extends ITransport {
      * Disconnect from Secux Device
      */
     async Disconnect() {
-        if (await this.#device.isConnected()) {
-            await this.#device.cancelConnection();
+        if (await this.#device!.isConnected()) {
+            await this.#device!.cancelConnection();
         }
     }
 
@@ -142,7 +145,16 @@ class SecuxReactNativeBLE extends ITransport {
         return true;
     }
 
-    get DeviceName() { return this.#device.name; }
+    Destory() {
+        this.#disconnectEvent!.remove();
+        this.#device!.isConnected()
+            .then(connected => {
+                if (connected) this.#device!.cancelConnection();
+                this.#device = undefined;
+            });
+    }
+
+    get DeviceName() { return this.#device!.name; }
     get DeviceType() { return this.#type ?? ''; }
     get MCU() { return this.#mcuVersion; }
     get SE() { return this.#seVersion; }
@@ -220,8 +232,8 @@ class SecuxReactNativeBLE extends ITransport {
     }
 
     async #setupGattService() {
-        await this.#device.discoverAllServicesAndCharacteristics();
-        const { service, uuid } = findDeviceType(await this.#device.services());
+        await this.#device!.discoverAllServicesAndCharacteristics();
+        const { service, uuid } = findDeviceType(await this.#device!.services());
         const characteristics = await service.characteristics();
         this.#reader = characteristics.find(c => c.uuid === uuid.TX);
         if (!this.#reader) throw "Cannot find NUS_TX_CHARACTERISTIC_UUID";
@@ -278,8 +290,8 @@ class SecuxReactNativeBLE extends ITransport {
 
         for (let i = 0; i < timeout / interval; i++) {
             // re-connect
-            if (!await this.#device.isConnected()) {
-                await this.#device.connect();
+            if (!await this.#device!.isConnected()) {
+                await this.#device!.connect();
                 await this.#setupGattService();
             }
 
