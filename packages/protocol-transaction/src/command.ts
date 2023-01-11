@@ -19,6 +19,7 @@ limitations under the License.
 
 export const GET_PUBLICKEY = [0x80, 0xc1] as const;
 export const GET_XPUBLICKEY = [0x80, 0xc0] as const;
+export const GET_ECIES_SECRET = [0x80, 0xc6] as const;
 export const SIGN_TX = [0x70, 0xa4] as const;
 export const SIGN_TX_RAW = [0x70, 0xa3] as const;
 export const SIGN_MESSAGE = [0x70, 0xa5] as const;

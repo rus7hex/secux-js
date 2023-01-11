@@ -17,11 +17,14 @@ limitations under the License.
 */
 
 
-import { buildPathBuffer, Logger, owTool, Signature, toExtenededPublicKey } from "@secux/utility";
+import {
+    buildPathBuffer, checkFWVersion, FirmwareError, Logger, owTool, Signature, toExtenededPublicKey
+} from "@secux/utility";
 import {
     base64String, communicationData, getBuffer, ow_communicationData, Send, StatusCode, toAPDUResponse,
-    TransportStatusError, wrapResult
+    toCommunicationData, TransportStatusError, wrapResult
 } from "@secux/utility/lib/communication";
+import * as secp256k1 from "@secux/utility/lib/secp256k1";
 import * as command from "./command";
 import ow from "ow";
 import {
@@ -159,6 +162,62 @@ class SecuxTransactionTool {
 
                 return publicExtendedKey;
         }
+    }
+
+    /**
+     * Query ECIES shared secret command.
+     * @param {string} path BIP32
+     * @param {communicationData} publickey secp256k1 compressed publickey
+     * @returns {communicationData} data for sending to device
+     */
+    static getECIESsecret(path: string, publickey: communicationData): communicationData {
+        try {
+            const { ITransport } = require("@secux/transport");
+            const mcu = {
+                crypto: "2.25",
+                nifty: undefined
+            };
+
+            //@ts-ignore
+            checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
+            checkFWVersion("se", "1.96", ITransport.seVersion);
+        } catch (error) {
+            if (error instanceof FirmwareError) throw error;
+        }
+        ow(path, ow_bip32String);
+        ow(publickey, ow_communicationData);
+
+        const pubkey = getBuffer(publickey);
+        if (pubkey.length !== 33 || !secp256k1.validate(pubkey)) {
+            throw Error(`expect compressed secp256k1 publickey, but got ${pubkey.toString("hex")}`);
+        }
+
+        const { pathBuffer } = buildPathBuffer(path);
+        const payload = Buffer.from([...pathBuffer, ...pubkey]);
+        const [cla, ins] = command.GET_ECIES_SECRET;
+        logger?.debug(`send command ${cla.toString(16)} ${ins.toString(16)} (getECIESsecret)`);
+
+        return Send(cla, ins, 0, 0, payload);
+    }
+
+    /**
+     * Reslove ECIES shared secret from SecuX device.
+     * @param {communicationData} response data from device 
+     * @returns {communicationData} ECIES shared secret
+     */
+    static resolveECIESsecret(response: communicationData): communicationData {
+        ow(response, ow_communicationData);
+
+        const rsp = toAPDUResponse(getBuffer(response));
+        if (rsp.status !== StatusCode.SUCCESS) throw new TransportStatusError(rsp.status);
+
+        const secretLength = 64;
+        if (rsp.dataLength !== secretLength) {
+            logger?.warn(`Received data length error, got "${rsp.data.toString("hex")}"`);
+            throw Error('Invalid shared secret length');
+        }
+
+        return toCommunicationData(rsp.data);
     }
 
     /**
@@ -596,6 +655,27 @@ function validateHardenedPath(path: string) {
     const isHardened = !!path.match(/^m(\/\d+')+$/);
 
     if (!isHardened) throw Error(`ArgumentError: accept hardened path only, got ${path}`);
+}
+
+
+try {
+    const { ITransport } = require("@secux/transport");
+
+    Object.defineProperties(ITransport.prototype, {
+        getSharedSecret: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                //@ts-ignore
+                const buf = SecuxTransactionTool.getECIESsecret(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxTransactionTool.resolveECIESsecret(rsp);
+            }
+        },
+    });
+} catch (error) {
+    // skip plugin injection 
 }
 
 

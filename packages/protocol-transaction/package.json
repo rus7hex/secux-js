@@ -33,7 +33,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@secux/utility": "^3.0.6"
+    "@secux/utility": "^3.0.14"
   },
   "devDependencies": {
     "bip32": "^2.0.6",
