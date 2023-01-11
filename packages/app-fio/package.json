@@ -1,6 +1,6 @@
 {
   "name": "@secux/app-fio",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "SecuX Hardware Wallet FIO API",
   "keywords": [
     "secux",
@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@fioprotocol/fiosdk": "~1.7.0",
-    "@secux/protocol-transaction": "^3.1.4",
+    "@secux/protocol-transaction": "^3.1.5",
     "@secux/utility": "^3.0.9"
   },
   "peerDependencies": {

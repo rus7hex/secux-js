@@ -10,7 +10,7 @@ const mnemonic = "neither black arm fun match nominee north lock cave judge wind
 const seed = mnemonicToSeedSync(mnemonic);
 const root = fromSeed(seed);
 const url = "https://fiotestnet.blockpane.com/v1/";
-SecuxFIO.setApiUrl(url);
+SecuxFIO.ApiUrl = url;
 
 
 export function test(GetDevice) {
@@ -79,6 +79,43 @@ export function test(GetDevice) {
             );
 
             assert.exists(obj);
+        }).timeout(10000);
+    });
+
+    describe('FIO Request', async () => {
+        const path = `m/44'/235'/${RandomNumber(20)}'/0/${RandomNumber(20)}`;
+        const recvKey = root.derivePath(`m/44'/235'/${RandomNumber(20)}'/0/${RandomNumber(20)}`).publicKey;
+        const payeeFioPublicKey = new Ecc.PublicKey.fromBuffer(recvKey).toString();
+        const amount = 1e9;
+        const maxFee = 800 * 1e9;
+
+        it('can generate shared secret', async () => {
+            const secret = await GetDevice().getSharedSecret(path, recvKey);
+            SecuxFIO.SharedSecret = secret;
+
+            const prv = Ecc.PrivateKey(root.derivePath(path).privateKey);
+            const _secret = prv.getSharedSecret(payeeFioPublicKey);
+
+            assert.deepEqual(secret, _secret);
+        });
+
+        it('can sign transaction', async () => {
+            const payeePublicAddress = await GetDevice().getAddress(path);
+            const signed = await GetDevice().sign(path,
+                "requestFunds",
+                {
+                    payerFioAddress: "me@4nd3rs0n",
+                    payeeFioAddress: "4nd3rs0n@fiotestnet",
+                    payeePublicAddress,
+                    amount,
+                    chainCode: "FIO",
+                    tokenCode: "FIO",
+                    memo: "testing fund request",
+                    maxFee,
+                }
+            );
+
+            assert.exists(signed);
         }).timeout(10000);
     });
 

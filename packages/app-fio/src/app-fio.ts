@@ -26,7 +26,7 @@ const { checkEncode, checkDecode } = require("@fioprotocol/fiojs/dist/ecc/key_ut
 import * as secp256k1 from "@secux/utility/lib/secp256k1";
 import { sha256 } from "hash.js";
 import ow from "ow";
-import { SDK, setApiUrl } from "./transaction";
+import { SDK, SharedCipher, setApiUrl } from "./transaction";
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
 
 
@@ -38,8 +38,6 @@ const ow_fioPubkey = ow.string.startsWith(fio_prefix)
 
 @staticImplements<IPlugin>()
 export class SecuxFIO {
-    static readonly setApiUrl = setApiUrl;
-
     /**
      * Convert publickey to FIO address.
      * @param {string|Buffer} publickey secp256k1 publickey
@@ -130,6 +128,15 @@ export class SecuxFIO {
     static resolveXPublickey(response: communicationData, path: string): string {
         ow(path, ow_path);
         return SecuxTransactionTool.resolveXPublickey(response, path);
+    }
+
+    static prepareSharedSecret(path: string, publickey: communicationData): communicationData {
+        ow(path, ow_path);
+        return SecuxTransactionTool.getECIESsecret(path, publickey);
+    }
+
+    static resolveSharedSecret(response: communicationData): communicationData {
+        return SecuxTransactionTool.resolveECIESsecret(response);
     }
 
     /**
@@ -239,6 +246,14 @@ export class SecuxFIO {
         const obj = SecuxFIO.resolveTransaction(rsp, serialized);
 
         return obj;
+    }
+
+    static set ApiUrl(url: string) {
+        setApiUrl(url);
+    }
+
+    static set SharedSecret(secret: communicationData) {
+        SharedCipher.SharedSecret = getBuffer(secret);
     }
 }
 
