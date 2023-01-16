@@ -1,0 +1,35 @@
+{
+  "name": "@secux/providers",
+  "version": "1.0.0",
+  "description": "SecuX Wallet Providers",
+  "keywords": [
+    "secux",
+    "wallet",
+    "provider",
+    "eth",
+    "ethereum",
+    "eip-1193"
+  ],
+  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/providers",
+  "author": "SecuX Technology Inc.",
+  "license": "Apache-2.0",
+  "main": "lib/index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "sh ../../build.sh",
+    "tsc": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "eip1193-provider": "^1.0.1"
+  }
+}
