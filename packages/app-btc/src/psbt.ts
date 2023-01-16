@@ -30,7 +30,7 @@ import {
     isOutputAddress, isOutuptScriptExtended, isOutuptScript
 } from './interface';
 import {
-    getDefaultScript, getInScriptSize, getPayment, getPublickey, getSerializer, getWitnessSize,
+    getDefaultScript, getDustThreshold, getInScriptSize, getPayment, getPublickey, getSerializer, getWitnessSize,
     scriptWitnessToWitnessStack, taggedHash, toTweakedPublickey, vectorSize, witnessStackToScriptWitness
 } from './utils';
 import { Hash160, PaymentBTC } from './payment';
@@ -44,6 +44,7 @@ const logger = Logger?.child({ id: "psbt" });
 
 
 const SIGHASH_FORKID = 0x40;
+const dustRelayFee = 3;
 
 
 class SecuxPsbt {
@@ -252,6 +253,7 @@ class SecuxPsbt {
 
     PrepareSign(feeRate?: number): { commands: Array<communicationData>, rawTx: string } {
         if (feeRate) this.#optimizeByFee(feeRate);
+        this.#checkDust(!!feeRate);
 
         const outConfirm = Buffer.from([
             this.#data.outputs.length,
@@ -530,6 +532,26 @@ class SecuxPsbt {
         });
 
         return txForFee.virtualSize() + scriptSize + witnessSize / 4;
+    }
+
+    #checkDust(throwError: boolean) {
+        let error;
+
+        for (let i = 0; i < this.#tx.outs.length; i++) {
+            const { script, value } = this.#tx.outs[i];
+            const type = this.#payment.isP2SH(script)
+                ? ScriptType.P2SH_P2WPKH
+                : this.#payment.classify(script);
+            const dust = getDustThreshold(type, dustRelayFee);
+            const _value = BigNumber(value);
+
+            if (_value.lt(dust)) {
+                logger?.warn(`output #${i}: dust threshold is ${dust}, but got ${_value.toFixed(0)}`);
+                if (!error) error = Error("Transaction has output below a certain value (Dust).");
+            }
+        }
+
+        if (throwError && error) throw error;
     }
 
     #optimizeByFee(feeRate: number) {

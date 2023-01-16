@@ -128,6 +128,15 @@ export function getOutScriptSize(type: ScriptType): number {
     return 0;
 }
 
+export function getDustThreshold(output: ScriptType, dustRelayFee: number): number {
+    const spendable = 8 + varuint.encodingLength(1) + getOutScriptSize(output);
+    const minTxIn = (getWitnessSize(output).length !== 0)
+        ? 32 + 4 + 1 + 26 + 4
+        : 32 + 4 + 1 + 107 + 4;
+
+    return (spendable + minTxIn) * dustRelayFee;
+}
+
 export function sliceSize(size: number) {
     return varuint.encodingLength(size) + size;
 }

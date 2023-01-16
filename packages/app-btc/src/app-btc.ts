@@ -26,12 +26,15 @@ import { SecuxTransactionTool } from "@secux/protocol-transaction";
 import { communicationData, getBuffer, ow_communicationData, wrapResult } from "@secux/utility/lib/communication";
 import { EllipticCurve } from "@secux/protocol-transaction/lib/interface";
 import {
-    CoinType, txInput, txOutput, ScriptType, txOutputAddress, txOutputScriptExtened,
-    ow_txInput, ow_txOutput, coinmap, isOutuptScriptExtended, AddressOption, ow_AddressOption,
-    btcPurposes, PathObject, ow_path, ow_PathObject, SignOption, ow_SignOption, ow_accountPath, TransactionObject, ow_TransactionObject
+    CoinType, txInput, txOutput, ScriptType, txOutputAddress, txOutputScriptExtened, ow_txInput, ow_txOutput,
+    coinmap, isOutuptScriptExtended, AddressOption, ow_AddressOption, btcPurposes, PathObject, ow_path, ow_PathObject,
+    SignOption, ow_SignOption, ow_accountPath, TransactionObject, ow_TransactionObject
 } from './interface';
 import { SecuxPsbt } from './psbt';
-import { getCoinType, getDefaultScript, getInScriptSize, getOutScriptSize, getPayment, getPublickey, getPurpose, getWitnessSize, sliceSize, vectorSize } from './utils';
+import {
+    getCoinType, getDefaultScript, getDustThreshold, getInScriptSize, getOutScriptSize, getPayment, getPublickey,
+    getPurpose, getWitnessSize, sliceSize, vectorSize
+} from './utils';
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
 export { AddressOption, CoinType, ScriptType, txInput, txOutput, txOutputAddress, txOutputScriptExtened };
 
@@ -353,6 +356,16 @@ export class SecuxBTC {
             2 + inputsWitness.reduce((sum, w) => sum + vectorSize(w), 0);
 
         return (baseSize * 4 + witnessSize) / 4;
+    }
+
+    /**
+     * Estimate dust threshold of an output.
+     * @param {ScriptType} output script type of txout
+     * @param {number} [dustRelayFee] satoshis/vB, default: 3
+     * @returns {number} dust threshold
+     */
+    static getDustThreshold(output: ScriptType, dustRelayFee: number = 3): number {
+        return getDustThreshold(output, dustRelayFee);
     }
 }
 
