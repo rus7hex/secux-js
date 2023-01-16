@@ -251,36 +251,7 @@ class SecuxPsbt {
     }
 
     PrepareSign(feeRate?: number): { commands: Array<communicationData>, rawTx: string } {
-        if (feeRate) {
-            const vSize = this.#estimateVSize();
-            const estimateFee = Math.round(vSize * feeRate);
-            logger?.info(`Estimated fee is ${estimateFee}, with ${feeRate} fee rates.`);
-
-            const total = this.#data.inputs.reduce((a, txIn) => a + txIn.witnessUtxo!.value, 0);
-            const spend = this.#tx.outs[0].value;
-            const change = (this.#data.outputs.length === 1) ? 0 : this.#tx.outs[1].value;
-            const actualFee = total - spend - change;
-
-            if (actualFee < estimateFee) logger?.warn(`Estimated fee is ${estimateFee}, but got ${actualFee}.`);
-
-            if (actualFee > estimateFee || actualFee < vSize) {
-                if (change !== 0) {
-                    const value = total - spend - estimateFee;
-                    if (value < 0) throw Error(`Insufficient amount, expect ${spend + estimateFee}, but got ${total}.`);
-
-                    this.#tx.outs[1].value = value;
-                    logger?.info(`Modify change amount from ${change} to ${value}.`);
-                }
-                else {
-                    const value = total - estimateFee;
-                    if (value < 0) throw Error(`Insufficient amount, expect at least ${estimateFee}, but got ${total}.`);
-
-                    this.#tx.outs[0].value = value;
-                    logger?.info(`Modify spend amount from ${spend} to ${value}.`);
-                }
-            }
-        }
-
+        if (feeRate) this.#optimizeByFee(feeRate);
 
         const outConfirm = Buffer.from([
             this.#data.outputs.length,
@@ -453,7 +424,6 @@ class SecuxPsbt {
             prevout.script,
             type,
             txIn.redeemScript,
-            txIn.witnessScript
         );
 
         logger?.debug(`input #${index} script type: ${ScriptType[type]}`);
@@ -561,6 +531,36 @@ class SecuxPsbt {
 
         return txForFee.virtualSize() + scriptSize + witnessSize / 4;
     }
+
+    #optimizeByFee(feeRate: number) {
+        const vSize = this.#estimateVSize();
+        const estimateFee = Math.round(vSize * feeRate);
+        logger?.info(`Estimated fee is ${estimateFee}, with ${feeRate} fee rates.`);
+
+        const total = this.#data.inputs.reduce((a, txIn) => a + txIn.witnessUtxo!.value, 0);
+        const spend = this.#tx.outs[0].value;
+        const change = (this.#data.outputs.length === 1) ? 0 : this.#tx.outs[1].value;
+        const actualFee = total - spend - change;
+
+        if (actualFee < estimateFee) logger?.warn(`Estimated fee is ${estimateFee}, but got ${actualFee}.`);
+
+        if (actualFee > estimateFee || actualFee < vSize) {
+            if (change !== 0) {
+                const value = total - spend - estimateFee;
+                if (value < 0) throw Error(`Insufficient amount, expect ${spend + estimateFee}, but got ${total}.`);
+
+                this.#tx.outs[1].value = value;
+                logger?.info(`Modify change amount from ${change} to ${value}.`);
+            }
+            else {
+                const value = total - estimateFee;
+                if (value < 0) throw Error(`Insufficient amount, expect at least ${estimateFee}, but got ${total}.`);
+
+                this.#tx.outs[0].value = value;
+                logger?.info(`Modify spend amount from ${spend} to ${value}.`);
+            }
+        }
+    }
 }
 
 
@@ -568,7 +568,6 @@ function getMeaningfulScript(
     script: Buffer,
     scriptType: ScriptType,
     redeemScript?: Buffer,
-    witnessScript?: Buffer,
 ) {
     let meaningfulScript;
     switch (scriptType) {
@@ -577,11 +576,6 @@ function getMeaningfulScript(
             if (!redeemScript) throw Error("scriptPubkey is P2SH but redeemScript missing");
             meaningfulScript = redeemScript;
             break;
-
-        // case ScriptType.P2SH_P2WSH, ScriptType.P2WSH:
-        //     if (!witnessScript) throw Error("scriptPubkey or redeemScript is P2WSH but witnessScript missing");
-        //     meaningfulScript = witnessScript;
-        //     break;
 
         default:
             meaningfulScript = script;
@@ -600,16 +594,6 @@ function getScriptFromInput(input: PsbtInput, coin: CoinType) {
 
     if (input.witnessScript) {
         script = input.witnessScript;
-        // scriptType = payment.classify(script);
-        // switch (scriptType) {
-        //     case ScriptType.P2PKH:
-        //         scriptType = ScriptType.P2WSH_P2PKH;
-        //         break;
-
-        //     case ScriptType.P2WPKH:
-        //         scriptType = ScriptType.P2WSH_P2WPKH;
-        //         break;
-        // }
     }
     else if (input.redeemScript) {
         script = input.redeemScript;
