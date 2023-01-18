@@ -196,8 +196,6 @@ export function getPublickey(data: string | Buffer) {
     ow(data, ow.any(ow_hexString, ow.buffer));
 
     const pk = (typeof data === "string") ? Buffer.from(data, "hex") : data;
-    ow(pk, ow.buffer.is(x => x.length === 33 || x.length === 65));
-
     if (!secp256k1.publicKeyVerify(pk)) {
         throw Error(`ArgumentError: invalid secp256k1 publickey, got "${pk.toString("hex")}"`);
     }
