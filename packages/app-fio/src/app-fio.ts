@@ -26,13 +26,14 @@ const { checkEncode, checkDecode } = require("@fioprotocol/fiojs/dist/ecc/key_ut
 import * as secp256k1 from "@secux/utility/lib/secp256k1";
 import { sha256 } from "hash.js";
 import ow from "ow";
-import { SDK, SharedCipher, setApiUrl } from "./transaction";
+import { SDK, setApiUrl, setSecretHook } from "./transaction";
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
 
 
 const ow_path = ow_strictPath(235, 44);
 const fio_prefix = "FIO";
-const ow_fioPubkey = ow.string.startsWith(fio_prefix)
+const ow_fioPubkey = ow.string
+    .startsWith(fio_prefix)
     .is(x => !!checkDecode(x.substring(fio_prefix.length)));
 
 
@@ -213,6 +214,22 @@ export class SecuxFIO {
         });
     }
 
+    static async action(transport: ITransport, path: string, ...args: any[]): Promise<any> {
+        ow(path, ow_path);
+
+        //@ts-ignore
+        setSecretHook(async (pubkey: Buffer) => await transport.getSharedSecret(path, pubkey));
+
+        try {
+            SDK.publicKey = await SecuxFIO.getAddress.call(transport, path);
+            const result = await SDK.genericAction(...args);
+
+            return result;
+        }
+        finally {
+            setSecretHook(null);
+        }
+    }
 
     static async getAddress(this: ITransport, path: string, isLegacy: boolean = true): Promise<string> {
         const data = SecuxFIO.prepareAddress(path);
@@ -239,22 +256,48 @@ export class SecuxFIO {
     }
 
     static async sign(this: ITransport, path: string, ...args: any[]) {
+        //@ts-ignore
+        setSecretHook(async (pubkey: Buffer) => await this.getSharedSecret(path, pubkey));
         const address = await SecuxFIO.getAddress.call(this, path);
 
-        const { commandData, serialized } = await SecuxFIO.prepareSign(path, address, ...args);
-        const rsp = await this.Exchange(getBuffer(commandData));
-        const obj = SecuxFIO.resolveTransaction(rsp, serialized);
+        try {
+            const { commandData, serialized } = await SecuxFIO.prepareSign(path, address, ...args);
+            const rsp = await this.Exchange(getBuffer(commandData));
+            const obj = SecuxFIO.resolveTransaction(rsp, serialized);
 
-        return obj;
+            return obj;
+        }
+        finally {
+            setSecretHook(null);
+        }
     }
 
     static set ApiUrl(url: string) {
         setApiUrl(url);
     }
-
-    static set SharedSecret(secret: communicationData) {
-        SharedCipher.SharedSecret = getBuffer(secret);
-    }
 }
 
 loadPlugin(SecuxFIO, "SecuxFIO");
+
+
+try {
+    const { ITransport } = require("@secux/transport");
+
+    Object.defineProperties(ITransport.prototype, {
+        fioAction: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (path: string, ...args: any[]) {
+                const response = await SecuxFIO.action(this, path, ...args);
+                if (response.sigData?.length > 0) {
+                    throw Error(`Fio action need to be signed. (${args[0]})`);
+                }
+
+                return response;
+            }
+        },
+    });
+} catch (error) {
+    // skip plugin injection 
+}

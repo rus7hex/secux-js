@@ -83,15 +83,13 @@ export function test(GetDevice) {
     });
 
     describe('FIO Request', async () => {
-        const path = `m/44'/235'/${RandomNumber(20)}'/0/${RandomNumber(20)}`;
+        const path = "m/44'/235'/0'/0/0";
         const recvKey = root.derivePath(`m/44'/235'/${RandomNumber(20)}'/0/${RandomNumber(20)}`).publicKey;
         const payeeFioPublicKey = new Ecc.PublicKey.fromBuffer(recvKey).toString();
-        const amount = 1e9;
         const maxFee = 800 * 1e9;
 
         it('can generate shared secret', async () => {
             const secret = await GetDevice().getSharedSecret(path, recvKey);
-            SecuxFIO.SharedSecret = secret;
 
             const prv = Ecc.PrivateKey(root.derivePath(path).privateKey);
             const _secret = prv.getSharedSecret(payeeFioPublicKey);
@@ -100,17 +98,65 @@ export function test(GetDevice) {
         });
 
         it('can sign transaction', async () => {
-            const payeePublicAddress = await GetDevice().getAddress(path);
             const signed = await GetDevice().sign(path,
                 "requestFunds",
                 {
                     payerFioAddress: "me@4nd3rs0n",
-                    payeeFioAddress: "4nd3rs0n@fiotestnet",
-                    payeePublicAddress,
-                    amount,
-                    chainCode: "FIO",
-                    tokenCode: "FIO",
+                    payeeFioAddress: "c42y@fiotestnet",
+                    payeeTokenPublicAddress: "0x000000000000000000000000000000000000dEaD",
+                    amount: 10 * 1e6,
+                    chainCode: "ETH",
+                    tokenCode: "USDT",
                     memo: "testing fund request",
+                    maxFee,
+                }
+            );
+
+            assert.exists(signed);
+        }).timeout(10000);
+
+        it('can get pending requests', async () => {
+            const result = await GetDevice().fioAction(path, "getPendingFioRequests", {});
+            console.log(result);
+
+            assert.exists(result);
+        }).timeout(10000);
+
+        it('can get sent requests', async () => {
+            const result = await GetDevice().fioAction(path, "getSentFioRequests", {});
+            console.log(result);
+
+            assert.exists(result);
+        }).timeout(10000);
+
+        it('can get received requests', async () => {
+            const result = await GetDevice().fioAction(path, "getReceivedFioRequests", {});
+            console.log(result);
+
+            assert.exists(result);
+        }).timeout(10000);
+
+        it.only('can get objData', async () => {
+            const result = await GetDevice().fioAction(path, "getObtData", {});
+            console.log(result);
+
+            assert.exists(result);
+        }).timeout(10000);
+
+        it('can record obt data', async () => {
+            const signed = await GetDevice().sign(path,
+                "recordObtData",
+                {
+                    fioRequestId: 12345,
+                    payerFioAddress: "me@4nd3rs0n",
+                    payeeFioAddress: "c42y@fiotestnet",
+                    payerTokenPublicAddress: "sender's address",
+                    payeeTokenPublicAddress: "receiver's address",
+                    amount: 10 * 1e6,
+                    chainCode: "ETH",
+                    tokenCode: "USDT",
+                    status: 'sent_to_blockchain',
+                    obtId: 'txId',
                     maxFee,
                 }
             );

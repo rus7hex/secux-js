@@ -1,6 +1,6 @@
 {
   "name": "@secux/app-fio",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "description": "SecuX Hardware Wallet FIO API",
   "keywords": [
     "secux",
