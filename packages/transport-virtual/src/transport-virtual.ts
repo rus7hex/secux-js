@@ -41,6 +41,10 @@ class SecuxVirtualTransport extends ITransport {
         this.#seed_ada = BIP32ED25519.generateSeed(mnemonic);
     }
 
+    async Connect(): Promise<void> { }
+
+    async Disconnect(): Promise<void> { }
+
     get Exchange() {
         return this.#Exchange;
     }
