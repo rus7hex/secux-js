@@ -1,6 +1,7 @@
 import { RequestArguments } from "@json-rpc-tools/types";
 import { IJsonRpcConnection, JsonRpcPayload } from "@json-rpc-tools/utils";
 import { EthereumProvider } from "eip1193-provider";
+import "./http";
 import { ITransport } from "@secux/transport";
 import { DeviceType } from "@secux/transport/lib/interface";
 import { SecuxWebBLE } from "@secux/transport-webble";
@@ -46,7 +47,7 @@ export class EIP1193Provider extends EthereumProvider {
                 return !!this.#address ? [this.#address] : [];
         }
 
-        return super.request(request, context);
+        return await super.request(request, context);
     }
 
     protected async open(connection: string | IJsonRpcConnection = this.connection): Promise<void> {
