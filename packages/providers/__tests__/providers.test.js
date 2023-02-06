@@ -1,15 +1,23 @@
 require("@secux/utility/lib/logger");
 const { EIP1193Provider } = require("@secux/providers");
+const { SecuxVirtualTransport } = require("@secux/transport-virtual");
+const { assert } = require("chai");
 
 
 const button = document.getElementById("btn");
+button.onclick = () => {
+    mocha.run();
+}
 
 
 describe("EIP-1193 provider", () => {
-    const provider = new EIP1193Provider("https://eth.llamarpc.com");
+    const url = "https://eth.llamarpc.com";
+    const provider = new EIP1193Provider(url);
+    const mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    const signer = new SecuxVirtualTransport(mnemonic);
+    const provider_test = new EIP1193Provider(url, signer);
 
-
-    it("can request device", done => {
+    it("can connect to device", done => {
         let accounts;
         button.innerText = "connect to device"
         button.onclick = async () => {
@@ -30,4 +38,48 @@ describe("EIP-1193 provider", () => {
         };
         checker();
     }).timeout(60000);
+
+    it("eth_signTransaction", async () => {
+        try {
+            await provider.request({
+                method: "eth_signTransaction",
+                params: [
+                    {
+                        to: '0x000000000000000000000000000000000000dEaD'
+                    }
+                ]
+            });
+        } catch (error) {
+            await provider_test.request({
+                method: "eth_signTransaction",
+                params: [
+                    {
+                        to: '0x000000000000000000000000000000000000dEaD'
+                    }
+                ]
+            });
+        }
+    }).timeout(30000);
+
+    it("eth_sendTransaction", async () => {
+        try {
+            await provider.request({
+                method: "eth_sendTransaction",
+                params: [
+                    {
+                        to: '0x000000000000000000000000000000000000dEaD'
+                    }
+                ]
+            });
+        } catch (error) {
+            await provider_test.request({
+                method: "eth_sendTransaction",
+                params: [
+                    {
+                        to: '0x000000000000000000000000000000000000dEaD'
+                    }
+                ]
+            });
+        }
+    }).timeout(30000);
 });

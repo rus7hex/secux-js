@@ -8,6 +8,11 @@ import { SecuxWebBLE } from "@secux/transport-webble";
 import { SecuxWebUSB } from "@secux/transport-webusb";
 import { SecuxWebHID } from "@secux/transport-webhid";
 import "@secux/app-eth";
+import { BigNumber } from "bignumber.js";
+import { ow_address } from "@secux/app-eth/lib/interface";
+import { Logger, owTool } from "@secux/utility";
+import ow from "ow";
+const logger = Logger?.child({ id: "provider" });
 
 
 export class EIP1193Provider extends EthereumProvider {
@@ -15,6 +20,7 @@ export class EIP1193Provider extends EthereumProvider {
     #path = '';
     #address = '';
     #chainId = '';
+    #useEIP1559 = false;
 
 
     constructor(connection: string | IJsonRpcConnection, transport?: ITransport) {
@@ -45,6 +51,19 @@ export class EIP1193Provider extends EthereumProvider {
 
             case "eth_accounts":
                 return !!this.#address ? [this.#address] : [];
+
+            case "eth_signTransaction": {
+                const params = request.params?.[0];
+                if (!params) throw "missing value for required argument 0";
+                return await this.#signTransaction(params);
+            }
+
+            case "eth_sendTransaction": {
+                const params = request.params?.[0];
+                if (!params) throw "missing value for required argument 0";
+                const tx = await this.#signTransaction(params);
+                return await super.request({ method: "eth_sendRawTransaction", params: [tx] });
+            }
         }
 
         return await super.request(request, context);
@@ -67,6 +86,9 @@ export class EIP1193Provider extends EthereumProvider {
             this.events.emit("chainChanged", { chainId });
         }
         this.#chainId = chainId;
+
+        this.#useEIP1559 = await this.#is_EIP1559_Supported();
+        logger?.debug(`useEIP1559: ${this.#useEIP1559}`);
     }
 
     protected async close(): Promise<void> {
@@ -102,7 +124,85 @@ export class EIP1193Provider extends EthereumProvider {
                 return await SecuxWebBLE.Create(undefined, _disconnected, Object.values(DeviceType));
         }
     }
+
+    async #signTransaction(params: any): Promise<string> {
+        ow(params, ow.object.partialShape({
+            from: ow.any(ow.undefined, ow_address),
+            to: ow_address,
+            gas: ow.any(ow.undefined, owTool.prefixedhexString),
+            gasPrice: ow.any(ow.undefined, owTool.prefixedhexString),
+            value: ow.any(ow.undefined, owTool.prefixedhexString),
+            data: ow.any(ow.undefined, owTool.prefixedhexString),
+            nonce: ow.any(ow.undefined, owTool.prefixedhexString),
+        }));
+        if (!this.#address) throw "wallet not available";
+        if (params.from && params.from !== this.#address) throw `unknown wallet address ${params.from}`;
+
+        await this.#fetchData(params);
+        const tx = this.#useEIP1559 ?
+            {
+                ...params,
+                gasLimit: params.gas,
+                chainId: this.#chainId,
+                // default priority fee: 1 Gwei
+                maxFeePerGas: `0x${BigNumber(params.gasPrice!).plus("0x3b9aca00").toString(16)}`,
+                maxPriorityFeePerGas: "0x3b9aca00",
+            }
+            :
+            {
+                ...params,
+                gasLimit: params.gas,
+                chainId: this.#chainId,
+            };
+        logger?.debug(tx);
+
+        const { raw_tx } = await this.#transport!.sign(this.#path, tx);
+        return raw_tx;
+    }
+
+    async #fetchData(params: any) {
+        if (!params.value) params.value = "0x0";
+
+        if (!params.gas) {
+            const { from, to, data } = params;
+            params.gas = await this.request(
+                {
+                    method: "eth_estimateGas",
+                    params: [{ from, to, data }]
+                }
+            );
+        }
+
+        if (!params.gasPrice) {
+            params.gasPrice = await this.request(
+                {
+                    method: "eth_gasPrice"
+                }
+            );
+        }
+
+        if (!params.nonce) {
+            params.nonce = await this.request(
+                {
+                    method: "eth_getTransactionCount",
+                    params: [this.#address, "latest"]
+                }
+            );
+        }
+    }
+
+    async #is_EIP1559_Supported(): Promise<boolean> {
+        try {
+            await this.request({ method: "eth_feeHistory", params: ["0x1", "latest", [0]] });
+        }
+        catch (error) {
+            return false;
+        }
+
+        return true;
+    }
 }
+
 
 async function connectDevice(transport: ITransport) {
     await transport.Connect();
@@ -115,7 +215,8 @@ async function connectDevice(transport: ITransport) {
             try {
                 const authenticated = await transport.SendOTP(otp);
                 if (authenticated) return;
-            } catch (error) {
+            }
+            catch (error) {
                 // do nothing
             }
         } while (otp);
