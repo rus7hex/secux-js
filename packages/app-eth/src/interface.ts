@@ -34,6 +34,7 @@ export const ow_address = ow.string.matches(/^0x[0-9A-Fa-f]{40}$/)
     });
 export const ow_hexString32 = ow.string.matches(/^0x[a-fA-F0-9]{1,64}$/);
 export const ow_gasPriceUnit = ow.any(ow.number.uint32.positive, owTool.prefixedhexString);
+const ow_data = ow.string.matches(/^0x[0-9A-F-a-f]*$/);
 
 
 export interface tx155_base {
@@ -75,9 +76,9 @@ const __tx155 = {
     value: ow.any(ow.number.not.negative, owTool.prefixedhexString),
 };
 export const ow_tx155_base = ow.object.partialShape(__tx155);
-export const ow_tx155 = ow.object.exactShape({
+export const ow_tx155 = ow.object.partialShape({
     ...__tx155,
-    data: ow.any(ow.undefined, owTool.prefixedhexString)
+    data: ow.any(ow.undefined, ow_data)
 });
 
 const __tx1559 = {
@@ -91,9 +92,9 @@ const __tx1559 = {
     accessList: ow.any(ow.undefined, ow.array.ofType(ow.any()))
 };
 export const ow_tx1559_base = ow.object.partialShape(__tx1559);
-export const ow_tx1559 = ow.object.exactShape({
+export const ow_tx1559 = ow.object.partialShape({
     ...__tx1559,
-    data: ow.any(ow.undefined, owTool.prefixedhexString)
+    data: ow.any(ow.undefined, ow_data)
 });
 
 export const ow_baseData = ow.any(ow_tx155_base, ow_tx1559_base);

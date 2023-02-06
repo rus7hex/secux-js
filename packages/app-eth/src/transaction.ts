@@ -97,7 +97,9 @@ class ETHTransactionBuilder {
         this.#tx = { ...tx };
 
         if (typeof tx.chainId === "string") {
-            this.#tx.chainId = Buffer.from(tx.chainId.slice(2), "hex");
+            let str = tx.chainId.slice(2);
+            if (str.length % 2 !== 0) str = `0${str}`;
+            this.#tx.chainId = Buffer.from(str, "hex");
         }
         else if (typeof tx.chainId === "number") {
             let str = tx.chainId.toString(16);
