@@ -1,16 +1,17 @@
 import { RequestArguments } from "@json-rpc-tools/types";
 import { IJsonRpcConnection, JsonRpcPayload } from "@json-rpc-tools/utils";
 import { EthereumProvider } from "eip1193-provider";
-import "./http";
+import { BigNumber } from "bignumber.js";
 import { ITransport } from "@secux/transport";
 import { DeviceType } from "@secux/transport/lib/interface";
 import { SecuxWebBLE } from "@secux/transport-webble";
 import { SecuxWebUSB } from "@secux/transport-webusb";
 import { SecuxWebHID } from "@secux/transport-webhid";
-import "@secux/app-eth";
-import { BigNumber } from "bignumber.js";
+import { SecuxETH } from "@secux/app-eth";
 import { ow_address } from "@secux/app-eth/lib/interface";
 import { Logger, owTool } from "@secux/utility";
+import { getBuffer } from "@secux/utility/lib/communication";
+import "./http";
 import ow from "ow";
 const logger = Logger?.child({ id: "provider" });
 
@@ -63,6 +64,18 @@ export class EIP1193Provider extends EthereumProvider {
                 if (!params) throw "missing value for required argument 0";
                 const tx = await this.#signTransaction(params);
                 return await super.request({ method: "eth_sendRawTransaction", params: [tx] });
+            }
+
+            case "eth_sign": {
+                const address = request.params?.[0];
+                const message = request.params?.[1];
+                if (address && address !== this.#address) throw `unknown wallet address ${address}`;
+                if (!message) throw "missing value for required argument 1";
+
+                const data = SecuxETH.prepareSignMessage(this.#path, message);
+                const response = await this.#transport!.Exchange(getBuffer(data));
+                const signature = SecuxETH.resolveSignatureEIP155(response, BigNumber(this.#chainId).toNumber());
+                return `0x${signature}`;
             }
         }
 

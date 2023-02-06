@@ -82,4 +82,19 @@ describe("EIP-1193 provider", () => {
             });
         }
     }).timeout(30000);
+
+    it("eth_sign", async () => {
+        try {
+            await provider.request({
+                method: "eth_sign",
+                params: ["", "test message"]
+            });
+        } catch (error) {
+            const sig = await provider_test.request({
+                method: "eth_sign",
+                params: ["", "test message"]
+            });
+            console.log(sig)
+        }
+    }).timeout(30000);
 });
