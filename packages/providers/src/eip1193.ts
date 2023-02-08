@@ -11,6 +11,7 @@ import { SecuxETH } from "@secux/app-eth";
 import { ow_address } from "@secux/app-eth/lib/interface";
 import { Logger, owTool } from "@secux/utility";
 import { getBuffer } from "@secux/utility/lib/communication";
+import { SecuxTransactionTool } from "@secux/protocol-transaction";
 import "./http";
 import ow from "ow";
 const logger = Logger?.child({ id: "provider" });
@@ -68,8 +69,32 @@ export class EIP1193Provider extends EthereumProvider {
 
             case "eth_sign": {
                 const address = request.params?.[0];
-                const message = request.params?.[1];
-                if (address && address !== this.#address) throw `unknown wallet address ${address}`;
+                let hash = request.params?.[1];
+                this.#checkAddress(address);
+                if (!hash) throw "missing value for required argument 1";
+
+                if (!Buffer.isBuffer(hash)) {
+                    ow(hash, ow.string.matches(/^0x[0-9A-F-a-f]{64}/));
+                    hash = Buffer.from(hash.slice(2), "hex");
+                }
+                if (hash.length !== 32) throw "Invalid parameters: must provide a 32 bytes hash.";
+
+                const data = SecuxTransactionTool.signTransaction(this.#path, hash);
+                const response = await this.#transport!.Exchange(getBuffer(data));
+                const sigBase64 = SecuxTransactionTool.resolveSignature(response);
+                const signature = Buffer.from(sigBase64, "base64");
+                return `0x${signature.toString("hex")}`;
+            }
+
+            case "personal_sign": {
+                let address = request.params?.[1], message = request.params?.[0];
+                try {
+                    this.#checkAddress(address);
+                } catch (error) {
+                    address = request.params?.[0];
+                    message = request.params?.[1];
+                    this.#checkAddress(address);
+                }
                 if (!message) throw "missing value for required argument 1";
 
                 const data = SecuxETH.prepareSignMessage(this.#path, message);
@@ -213,6 +238,16 @@ export class EIP1193Provider extends EthereumProvider {
         }
 
         return true;
+    }
+
+    #checkAddress(address: string) {
+        try {
+            ow(address, ow_address);
+        } catch (error) {
+            throw "Invalid parameters: must provide an Ethereum address.";
+        }
+
+        if (address && address !== this.#address) throw `unknown wallet address ${address}`;
     }
 }
 

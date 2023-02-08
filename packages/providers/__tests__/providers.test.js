@@ -1,7 +1,7 @@
 require("@secux/utility/lib/logger");
 const { EIP1193Provider } = require("@secux/providers");
 const { SecuxVirtualTransport } = require("@secux/transport-virtual");
-const { assert } = require("chai");
+const randomBytes = require("randombytes");
 
 
 const button = document.getElementById("btn");
@@ -83,18 +83,35 @@ describe("EIP-1193 provider", () => {
         }
     }).timeout(30000);
 
+    it("personal_sign", async () => {
+        const address = (await provider_test.request({ method: "eth_accounts" }))[0];
+
+        try {
+            await provider.request({
+                method: "personal_sign",
+                params: [address, "test message"]
+            });
+        } catch (error) {
+            await provider_test.request({
+                method: "personal_sign",
+                params: [address, "test message"]
+            });
+        }
+    }).timeout(30000);
+
     it("eth_sign", async () => {
+        const address = (await provider_test.request({ method: "eth_accounts" }))[0];
+
         try {
             await provider.request({
                 method: "eth_sign",
-                params: ["", "test message"]
+                params: [address, randomBytes(32)]
             });
         } catch (error) {
-            const sig = await provider_test.request({
+            await provider_test.request({
                 method: "eth_sign",
-                params: ["", "test message"]
+                params: [address, randomBytes(32)]
             });
-            console.log(sig)
         }
     }).timeout(30000);
 });
