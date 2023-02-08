@@ -81,9 +81,9 @@ export class EIP1193Provider extends EthereumProvider {
 
                 const data = SecuxTransactionTool.signTransaction(this.#path, hash);
                 const response = await this.#transport!.Exchange(getBuffer(data));
-                const sigBase64 = SecuxTransactionTool.resolveSignature(response);
-                const signature = Buffer.from(sigBase64, "base64");
-                return `0x${signature.toString("hex")}`;
+                // Metamask does not apply EIP-155
+                const signature = SecuxETH.resolveSignatureEIP155(response);
+                return `0x${signature}`;
             }
 
             case "personal_sign": {
@@ -94,13 +94,34 @@ export class EIP1193Provider extends EthereumProvider {
                     address = request.params?.[0];
                     message = request.params?.[1];
                     this.#checkAddress(address);
+                    if (!message) throw "missing value for required argument 1";
                 }
-                if (!message) throw "missing value for required argument 1";
+                if (!message) throw "missing value for required argument 0";
 
                 const data = SecuxETH.prepareSignMessage(this.#path, message);
                 const response = await this.#transport!.Exchange(getBuffer(data));
-                const signature = SecuxETH.resolveSignatureEIP155(response, BigNumber(this.#chainId).toNumber());
+                // Metamask does not apply EIP-155
+                const signature = SecuxETH.resolveSignatureEIP155(response);
                 return `0x${signature}`;
+            }
+
+            case "eth_signTypedData":
+            case "eth_signTypedData_v3":
+            case "eth_signTypedData_v4": {
+                let address = request.params?.[0], msgParams = request.params?.[1];
+                try {
+                    this.#checkAddress(address);
+                } catch (error) {
+                    address = request.params?.[1];
+                    msgParams = request.params?.[0];
+                    this.#checkAddress(address);
+                    if (!msgParams) throw "missing value for required argument 0";
+                }
+                if (!msgParams) throw "missing value for required argument 1";
+
+                if (typeof msgParams !== "string") msgParams = JSON.stringify(msgParams);
+                const { signature } = await this.#transport!.sign(this.#path, msgParams);
+                return signature;
             }
         }
 
