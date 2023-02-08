@@ -23,9 +23,9 @@ import ow from 'ow';
 import { checkFWVersion, loadPlugin, Logger, owTool, ow_strictPath } from '@secux/utility';
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
 import { EllipticCurve, TransactionType } from "@secux/protocol-transaction/lib/interface";
-import { ow_tx155, ow_tx1559, tx155, tx1559, JsonString, isJsonString } from './interface';
+import { ow_tx155, ow_tx1559, tx155, tx1559, JsonString, isJsonString, ow_TypedDataV1 } from './interface';
 import { ETHTransactionBuilder, getBuilder } from './transaction';
-import { TypedDataUtils } from "eth-sig-util";
+import { TypedDataUtils, typedSignatureHash } from "eth-sig-util";
 import { base64_regexp, communicationData, getBuffer, ow_communicationData, toCommunicationData, wrapResult } from "@secux/utility/lib/communication";
 import { ERC20 } from "./erc20";
 import { ERC721 } from "./erc721";
@@ -267,10 +267,18 @@ class SecuxETH {
         checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
         ow(path, ow_path);
         ow(typedData, ow.string);
-        const data = JSON.parse(typedData);
 
-        //@ts-ignore
+        const data = JSON.parse(typedData);
         const sanitizedData = TypedDataUtils.sanitizeData(data);
+
+        // signTypedData_v1
+        if (Object.keys(sanitizedData).length === 0) {
+            ow(data, ow.array.ofType(ow_TypedDataV1).nonEmpty);
+
+            const hash = typedSignatureHash(data);
+            const buf = Buffer.from(hash.slice(2), "hex");
+            return SecuxTransactionTool.signTransaction(path, buf);
+        }
 
         const parts = [];
         parts.push(
@@ -506,8 +514,6 @@ function isNFT(data: string | Buffer) {
         "42842e0e",  // safeTransferFrom
         "f242432a",  // safeTransferFrom with empty Data field
     ];
-
-    console.log(abiData);
 
     for (const abi of abiNFT) {
         if (abiData.startsWith(abi)) return true;

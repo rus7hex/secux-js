@@ -99,6 +99,12 @@ export const ow_tx1559 = ow.object.partialShape({
 
 export const ow_baseData = ow.any(ow_tx155_base, ow_tx1559_base);
 
+export const ow_TypedDataV1 = ow.object.exactShape({
+    name: ow.string,
+    type: ow.string,
+    value: ow.string
+});
+
 export const ow_EIP712TypedData = ow.object.exactShape({
     name: ow.string,
     type: ow.string
