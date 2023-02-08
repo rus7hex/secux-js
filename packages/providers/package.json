@@ -29,7 +29,7 @@
     "test": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/providers.test.js"
   },
   "dependencies": {
-    "@secux/app-eth": "^3.0.16",
+    "@secux/app-eth": "^3.0.18",
     "@secux/transport": "^3.0.0",
     "@secux/transport-webble": "^3.0.0",
     "@secux/transport-webhid": "^3.0.0",
