@@ -22,6 +22,7 @@ export class EIP1193Provider extends EthereumProvider {
     #path = '';
     #address = '';
     #chainId = '';
+    #accountIndex = 0;
     #useEIP1559 = false;
 
 
@@ -36,7 +37,7 @@ export class EIP1193Provider extends EthereumProvider {
 
         if (!this.#transport) return;
         if (!this.#address) await connectDevice(this.#transport);
-        await this.setAccount(0);
+        await this.setAccount(this.#accountIndex);
     }
 
     async request(request: RequestArguments<any>, context?: any): Promise<any> {
@@ -48,7 +49,7 @@ export class EIP1193Provider extends EthereumProvider {
 
                 this.#transport = await this.#findDevice(request.params?.[0]);
                 await connectDevice(this.#transport);
-                await this.setAccount(0);
+                await this.setAccount(this.#accountIndex);
                 return [this.#address];
 
             case "eth_accounts":
@@ -157,7 +158,8 @@ export class EIP1193Provider extends EthereumProvider {
 
 
     async setAccount(index: number) {
-        this.#path = `m/44'/60'/${index}'/0/0`;
+        this.#accountIndex = index;
+        this.#path = `m/44'/60'/${this.#accountIndex}'/0/0`;
         const address = await this.#transport!.getAddress(this.#path);
 
         if (!this.#address && this.#address !== address) {
