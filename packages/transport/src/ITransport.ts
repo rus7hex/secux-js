@@ -161,7 +161,7 @@ abstract class ITransport {
 
     get version() { return this.#version ?? ITransport.PROTOCOLv1; }
     set version(value: number) {
-        if (!!this.#version) throw Error("Protocol cannot change after setup.");
+        if (!!this.#version && this.#version !== value) throw Error("Protocol cannot change after setup.");
 
         this.#version = value;
         switch (value) {
@@ -175,7 +175,7 @@ abstract class ITransport {
 
     get packetSize() { return this.#packetSize ?? 64; }
     set packetSize(value: number) {
-        if (!!this.#packetSize) throw Error("Packet size cannot change after setup.");
+        if (!!this.#packetSize && this.#packetSize !== value) throw Error("Packet size cannot change after setup.");
 
         this.#packetSize = value;
     }
