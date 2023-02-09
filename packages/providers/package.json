@@ -1,6 +1,6 @@
 {
   "name": "@secux/providers",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "SecuX Wallet Providers",
   "keywords": [
     "secux",
@@ -19,13 +19,14 @@
     "test": "__tests__"
   },
   "files": [
-    "lib"
+    "lib",
+    "dist"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "sh ../../build.sh",
+    "build": "sh ../../build.sh; sh ./build.sh",
     "test": "npx webpack serve --progress --config ../../webpack.config.js --output-path ./__tests__ --entry ./__tests__/providers.test.js"
   },
   "dependencies": {
