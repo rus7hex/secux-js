@@ -178,7 +178,9 @@ export class EIP1193Provider extends EthereumProvider {
     async setAccount(index: number) {
         this.#accountIndex = index;
         this.#path = `m/44'/60'/${this.#accountIndex}'/0/0`;
-        const address = await this.#transport!.getAddress(this.#path);
+        if (!this.#transport) throw Error("wallet not available");
+
+        const address = await this.#transport.getAddress(this.#path);
 
         if (!this.#address && this.#address !== address) {
             this.events.emit("accountsChanged", [address]);
