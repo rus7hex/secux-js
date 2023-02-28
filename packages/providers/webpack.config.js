@@ -1,3 +1,10 @@
+const webpack = require('webpack');
+
+const nodepolyfillPlugin = new webpack.ProvidePlugin({
+    process: 'process/browser',
+    Buffer: ['buffer', 'Buffer'],
+});
+
 module.exports = {
     entry: "./src/index.ts",
     output: {
@@ -7,6 +14,7 @@ module.exports = {
             type: 'umd'
         }
     },
+    plugins: [nodepolyfillPlugin],
     mode: 'production',
     module: {
         rules: [
@@ -20,8 +28,16 @@ module.exports = {
     resolve: {
         extensions: ['.ts', '.js'],
         fallback: {
-            stream: false
+            buffer: require.resolve('buffer/'),
+            process: require.resolve('process'),
+            fs: false,
+            os: false,
+            path: false,
+            stream: false,
         }
+    },
+    externals: {
+        "react-native-logs": "react-native-logs"
     },
     experiments: {
         asyncWebAssembly: true
