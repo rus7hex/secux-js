@@ -85,7 +85,7 @@ export class SecuxWalletHandler extends ITransport {
                 L1 = getBuffer(to_L1_APDU(data));
             }
 
-            this.#handler.emit("write", data.toString("base64"));
+            this.#handler.emit("write", L1.toString("base64"));
         }
 
         return await task;

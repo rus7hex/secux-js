@@ -1,6 +1,6 @@
 {
   "name": "@secux/transport-handler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SecuX Hardware Wallet javascript handler for web and application",
   "keywords": [
     "secux",
