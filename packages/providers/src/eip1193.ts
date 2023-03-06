@@ -25,6 +25,7 @@ import { DeviceType } from "@secux/transport/lib/interface";
 import { SecuxWebBLE } from "@secux/transport-webble";
 import { SecuxWebUSB } from "@secux/transport-webusb";
 import { SecuxWebHID } from "@secux/transport-webhid";
+import { SecuxWalletHandler } from "@secux/transport-handler";
 import { SecuxETH } from "@secux/app-eth";
 import { ow_address } from "@secux/app-eth/lib/interface";
 import { Logger, owTool } from "@secux/utility";
@@ -63,6 +64,7 @@ export class EIP1193Provider extends EthereumProvider {
 
         switch (request.method) {
             case "eth_requestAccounts":
+                if (this.#transport instanceof SecuxWalletHandler) return [this.#address];
                 if (this.#transport) await this.#transport.Disconnect();
 
                 this.#transport = await this.#findDevice(request.params?.[0]);
