@@ -59,6 +59,11 @@ export class EIP1193Provider extends EthereumProvider {
         await this.setAccount(this.#accountIndex);
     }
 
+    async disconnect(): Promise<void> {
+        await super.disconnect();
+        await this.#transport?.Disconnect();
+    }
+
     async request(request: RequestArguments<any>, context?: any): Promise<any> {
         if (!this.connection.connected) await this.connect();
 
@@ -171,11 +176,10 @@ export class EIP1193Provider extends EthereumProvider {
         logger?.debug(`useEIP1559: ${this.#useEIP1559}`);
     }
 
-    protected async close(): Promise<void> {
-        await super.close();
-        await this.#transport?.Disconnect();
-    }
 
+    get chainId() {
+        return this.#chainId;
+    }
 
     async setAccount(index: number): Promise<string> {
         this.#accountIndex = index;
