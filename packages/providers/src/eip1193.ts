@@ -167,7 +167,7 @@ export class EIP1193Provider extends EthereumProvider {
         const chainId = await this.request({ method: "eth_chainId" });
         this.events.emit("connect", { chainId });
 
-        if (!this.#chainId && this.#chainId !== chainId) {
+        if (!!this.#chainId && this.#chainId !== chainId) {
             this.events.emit("chainChanged", { chainId });
         }
         this.#chainId = chainId;
