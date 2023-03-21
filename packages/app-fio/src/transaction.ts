@@ -27,6 +27,7 @@ import { checkDecrypt, checkEncrypt } from "@fioprotocol/fiojs/dist/encryption-c
 import { SerialBuffer } from "@fioprotocol/fiojs/dist/chain-serialize";
 import { base64ToBinary } from "@fioprotocol/fiojs/dist/chain-numeric";
 import { hmac, sha1 } from "hash.js";
+import { FirmwareError } from "@secux/utility";
 
 
 export const SDK = new FIOSDK(
@@ -208,6 +209,8 @@ Reflect.defineProperty(Query.prototype, "execute", {
                             value.content = await Promise.resolve(value.content());
                             results[key].push(value);
                         } catch (error) {
+                            if (error instanceof FirmwareError) throw error;
+
                             // do nothing
                         }
                     }
