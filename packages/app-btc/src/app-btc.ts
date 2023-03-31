@@ -36,6 +36,7 @@ import {
     getPurpose, getWitnessSize, sliceSize, vectorSize
 } from './utils';
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
+import { PaymentBTC } from './payment';
 export { AddressOption, CoinType, ScriptType, txInput, txOutput, txOutputAddress, txOutputScriptExtened };
 
 
@@ -366,6 +367,22 @@ export class SecuxBTC {
      */
     static getDustThreshold(output: ScriptType, dustRelayFee: number = 3): number {
         return getDustThreshold(output, dustRelayFee);
+    }
+
+    /**
+     * Validate address.
+     * @param {string} address
+     * @param {CoinType} [coin] default: CoinType.BITCOIN
+     * @returns {boolean} true if address is valid
+     */
+    static validateAddress(address: string, coin: CoinType = CoinType.BITCOIN): boolean {
+        try {
+            PaymentBTC.decode(coin, address);
+        } catch (error) {
+            return false;
+        }
+
+        return true;
     }
 }
 
