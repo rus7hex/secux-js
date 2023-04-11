@@ -179,8 +179,8 @@ class PaymentBTC {
     static decode(coin: CoinType, address: string): Buffer {
         const network = coinmap[coin];
 
-        // segwit address
-        if (network.bech32 && address.startsWith(network.bech32)) {
+        // segwit address, bech32/bech32m is case insensitive
+        if (network.bech32 && RegExp(`^${network.bech32}`, "i").test(address)) {
             const trimmed = address.slice(network.bech32.length + 1);
             let result;
             switch (trimmed[0]) {
