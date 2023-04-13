@@ -68,7 +68,7 @@ export function compile(chunks: any[]) {
 }
 
 export function decompile(buffer: Buffer) {
-    const chunks = [];
+    const chunks: (number | Buffer)[] = [];
     let i = 0;
     while (i < buffer.length) {
         const opcode = buffer[i];

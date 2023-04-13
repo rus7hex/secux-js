@@ -184,7 +184,7 @@ export function scriptWitnessToWitnessStack(buffer: Buffer) {
     }
 
     const count = readVarInt();
-    const vector = [];
+    const vector: Buffer[] = [];
     for (let i = 0; i < count; i++) {
         vector.push(readVarSlice());
     }

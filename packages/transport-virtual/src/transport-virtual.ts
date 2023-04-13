@@ -142,7 +142,7 @@ class SecuxVirtualTransport extends ITransport {
         let offset = 0;
         const txCount = data[offset++];
 
-        const pathList = [];
+        const pathList: string[] = [];
         for (let i = 0; i < txCount; i++) {
             const len = data[offset++];
             const pathBuf = data.slice(offset + 4, offset + len);
@@ -151,7 +151,7 @@ class SecuxVirtualTransport extends ITransport {
             offset += len;
         }
 
-        const signatureList = [];
+        const signatureList: Buffer[] = [];
         for (let i = 0; i < txCount; i++) {
             const len = data.readUInt16BE(offset);
             offset += 2;

@@ -526,8 +526,8 @@ function CreateBaseTransaction(inputs: Array<txInput>, config?: Array<any>) {
     const c = config ?? cardano.__config;
     const builder = cardano.TransactionBuilder.new(...c);
 
-    const paths = [];
-    const publickeys = [];
+    const paths: string[] = [];
+    const publickeys: Buffer[] = [];
     for (const txIn of inputs) {
         const index = txIn.addressIndex ?? 0;
         const pk = xpubToPublickey(convertToBuffer(txIn.xpublickey!), 0, index);

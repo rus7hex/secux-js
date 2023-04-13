@@ -451,7 +451,7 @@ class SecuxDeviceNifty {
             throw Error(`Invalid response, expect command code 0x04, but got 0x${data[1].toString(16)}`);
         }
 
-        let resume = undefined, trim = 1;
+        let resume: communicationData | undefined = undefined, trim = 1;
         // need to send another command (4k buffer restriction on device)
         if (data[data.length - 2] === 0x1c) {
             const command = getBuffer(SecuxDeviceNifty.prepareListGalleryFiles());

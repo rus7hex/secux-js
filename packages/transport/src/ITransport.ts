@@ -310,7 +310,7 @@ abstract class ITransport {
     #buildPacketBuffer(buffer: Buffer) {
         const packet = this.packetSize;
         const nBlocks = Math.ceil(buffer.length / packet);
-        const blocks = [];
+        const blocks: Buffer[] = [];
         let offset = 0;
         for (let i = 0; i < nBlocks - 1; i++) {
             const chunkData = buffer.slice(offset, offset + packet);

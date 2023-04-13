@@ -310,7 +310,7 @@ class SecuxTransactionTool {
             throw Error('Invalid signature length');
         }
 
-        const signatureList = [];
+        const signatureList: Buffer[] = [];
         let offset = 0;
         while (offset < rsp.dataLength) {
             const sig = rsp.data.slice(offset, offset + SIGNATURE_LENGTH);
@@ -587,7 +587,7 @@ function buildTxBuffer(paths: Array<string>, txs: Array<Buffer>,
 ) {
     if (paths.length != txs.length) throw Error('Inconsistent length of paths and txs');
 
-    const head = [], data = [];
+    const head: Buffer[] = [], data: Buffer[] = [];
     for (let i = 0; i < paths.length; i++) {
         const headerBuffer = Buffer.alloc(4);
         headerBuffer.writeUInt16LE(tp, 0);

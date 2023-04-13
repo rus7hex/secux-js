@@ -385,7 +385,7 @@ export class TransactionV0 extends Transaction {
 
 
 function encodeLength(len: number): Buffer {
-    const bytes = [];
+    const bytes: number[] = [];
     while (true) {
         let elem = len & 0x7f;
         len >>= 7;

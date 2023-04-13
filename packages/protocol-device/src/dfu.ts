@@ -210,7 +210,7 @@ function checkCRC(data: Uint8Array, crc: number) {
 
 function buildPacketBuffer(buffer: Uint8Array, isUSB: boolean, packetSize: number = 60) {
     const nBlocks = Math.ceil(buffer.length / packetSize);
-    const blocks = [];
+    const blocks: Buffer[] = [];
     for (let i = 0; i < nBlocks; i++) {
         const chunkData = buffer.slice(i * packetSize, (i + 1) * packetSize);
         const packet = (isUSB) ? Buffer.from([0x08, ...chunkData]) : Buffer.from(chunkData);

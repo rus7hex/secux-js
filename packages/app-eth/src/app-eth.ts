@@ -280,7 +280,7 @@ class SecuxETH {
             return SecuxTransactionTool.signTransaction(path, buf);
         }
 
-        const parts = [];
+        const parts: Buffer[] = [];
         parts.push(
             TypedDataUtils.hashStruct(
                 'EIP712Domain',

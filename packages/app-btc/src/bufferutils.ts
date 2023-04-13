@@ -117,7 +117,7 @@ class BufferReader {
     }
     readVector() {
         const count = this.readVarInt();
-        const vector = [];
+        const vector: Buffer[] = [];
         for (let i = 0; i < count; i++) vector.push(this.readVarSlice());
         return vector;
     }
