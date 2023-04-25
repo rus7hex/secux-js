@@ -90,3 +90,9 @@ Object.defineProperty(Crypto, "ed25519", {
     configurable: false,
     writable: false
 });
+
+Object.defineProperty(Crypto, "ed25519_ada", {
+    enumerable: true,
+    configurable: false,
+    writable: false
+});

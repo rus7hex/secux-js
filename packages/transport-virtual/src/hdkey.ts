@@ -232,7 +232,8 @@ export class HDKey implements IHDKey {
         if (newPrivateKey === null) throw new Error('Invalid Tweak');
 
         return Buffer.from([
-            ...Crypto.secp256k1.signSchnorr(hash, newPrivateKey, Buffer.alloc(32)),
+            // use random bytes for extra entropy
+            ...Crypto.secp256k1.signSchnorr(hash, newPrivateKey, randomBytes(32)),
             0xFF
         ]);
     }

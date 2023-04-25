@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@secux/transport": "^3.1.2",
-    "@secux/utility": "file:../utility",
     "bip39": "^3.0.4",
     "cardano-crypto.js": "^6.1.0",
     "elliptic": "^6.5.4",
