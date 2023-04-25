@@ -180,8 +180,7 @@ export function test_address(GetDevice, root) {
 
             let expected;
             before(async () => {
-                const output = createKeySpendOutput(child.publicKey);
-                expected = btc.address.fromOutputScript(output);
+                expected = btc.payments.p2tr({ internalPubkey: child.publicKey.slice(1, 33) }).address;
             });
 
             let address;
@@ -1043,6 +1042,7 @@ function getSignedTX(root, inputs, outputs, isRBF) {
 let ecc = undefined;
 (async () => {
     ecc = await require("tiny-secp256k1");
+    btc.initEccLib(ecc);
 })();
 
 
