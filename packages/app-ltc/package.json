@@ -11,7 +11,7 @@
     "litecoin",
     "btc-like"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-ltc",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/app-ltc",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/app-ltc.js",

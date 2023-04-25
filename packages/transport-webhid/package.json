@@ -8,7 +8,7 @@
     "webhid",
     "transport"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-webhid",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/transport-webhid",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/transport-webhid.js",

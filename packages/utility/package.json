@@ -8,7 +8,7 @@
     "tool",
     "sdk"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/utility",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/utility",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/utility.js",

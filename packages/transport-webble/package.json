@@ -7,7 +7,7 @@
     "webble",
     "transport"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-webble",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/transport-webble",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/transport-webble.js",

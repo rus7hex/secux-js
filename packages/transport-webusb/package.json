@@ -8,7 +8,7 @@
     "webusb",
     "transport"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-webusb",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/transport-webusb",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/transport-webusb.js",

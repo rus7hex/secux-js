@@ -11,7 +11,7 @@
     "bitcoincash",
     "btc-like"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-bch",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/app-bch",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/app-bch.js",

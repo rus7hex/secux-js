@@ -10,7 +10,7 @@
     "luna",
     "terra"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-luna",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/app-luna",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/app-luna.js",

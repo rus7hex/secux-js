@@ -10,7 +10,7 @@
     "dash",
     "btc-like"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-dash",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/app-dash",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/app-dash.js",

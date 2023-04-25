@@ -7,7 +7,7 @@
     "transport",
     "event"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-handler",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/transport-handler",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/transport-handler.js",

@@ -7,7 +7,7 @@
     "signer",
     "software wallet"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-virtual",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/transport-virtual",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/transport-virtual.js",

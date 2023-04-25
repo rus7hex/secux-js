@@ -7,7 +7,7 @@
     "react-native",
     "transport"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/transport-reactnative",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/transport-reactnative",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/transport-reactnative.js",

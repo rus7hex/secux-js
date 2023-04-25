@@ -9,7 +9,7 @@
     "tx",
     "fio"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-fio",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/app-fio",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/app-fio.js",

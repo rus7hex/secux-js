@@ -10,7 +10,7 @@
     "sol",
     "solana"
   ],
-  "homepage": "https://github.com/secuxtech/secux-js/tree/master/packages/app-sol",
+  "homepage": "https://github.com/SecuX/secux-js/tree/master/packages/app-sol",
   "author": "SecuX Technology Inc.",
   "license": "Apache-2.0",
   "main": "lib/app-sol.js",
