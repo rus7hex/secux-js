@@ -29,7 +29,7 @@
     "@secux/transport": "file:packages/transport",
     "@secux/transport-handler": "file:packages/transport-handler",
     "@secux/transport-reactnative": "file:packages/transport-reactnative",
-    "@secux/transport-virtual": "file:packages/transport-virtual",
+    "@secux/transport-signer": "file:packages/transport-virtual",
     "@secux/transport-webble": "file:packages/transport-webble",
     "@secux/transport-webhid": "file:packages/transport-webhid",
     "@secux/transport-webusb": "file:packages/transport-webusb",

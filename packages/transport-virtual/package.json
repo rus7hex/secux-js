@@ -1,5 +1,5 @@
 {
-  "name": "@secux/transport-virtual",
+  "name": "@secux/transport-signer",
   "version": "3.0.0",
   "description": "SecuX software signer for communication layer",
   "keywords": [
@@ -16,7 +16,8 @@
     "test": "__tests__"
   },
   "files": [
-    "lib"
+    "lib",
+    "dist"
   ],
   "publishConfig": {
     "access": "public"

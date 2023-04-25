@@ -1,11 +1,11 @@
-# `@secux/transport-virtual`
+# `@secux/transport-signer`
 
 > TODO: description
 
 ## Usage
 
 ```
-const transportVirtual = require('@secux/transport-virtual');
+const transportVirtual = require('@secux/transport-signer');
 
 // TODO: DEMONSTRATE API
 ```

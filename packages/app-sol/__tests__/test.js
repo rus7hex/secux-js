@@ -921,7 +921,7 @@ export function test(GetDevice) {
 
         let expected, signer;
         before(async () => {
-            const { SecuxVirtualTransport } = await import("@secux/transport-virtual");
+            const { SecuxVirtualTransport } = await import("@secux/transport-signer");
             signer = new SecuxVirtualTransport(mnemonic);
             expected = (await signer.sign(path, message)).signature;
         });

@@ -1,6 +1,6 @@
 require("@secux/utility/lib/logger");
 const { EIP1193Provider } = require("@secux/providers");
-const { SecuxVirtualTransport } = require("@secux/transport-virtual");
+const { SecuxVirtualTransport } = require("@secux/transport-signer");
 const { assert } = require("chai");
 
 

@@ -1,5 +1,5 @@
 require("@secux/utility/lib/logger");
-const { SecuxVirtualTransport } = require("@secux/transport-virtual");
+const { SecuxVirtualTransport } = require("@secux/transport-signer");
 
 
 const mnemonic = "neither black arm fun match nominee north lock cave judge window juice humor list verify permit unfold unfair expect muscle human true spoil ancient";
