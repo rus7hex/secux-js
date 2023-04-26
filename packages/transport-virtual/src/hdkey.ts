@@ -22,7 +22,7 @@ import { taggedHash } from "./hashdef";
 import { recidFromSignature } from "@secux/utility/lib/secp256k1";
 import { pbkdf2 } from "@noble/hashes/pbkdf2";
 import { sha512 } from "@noble/hashes/sha512";
-const randomBytes = require("randombytes");
+import * as secp256k1 from "./secp256k1_utils";
 
 
 const MASTER_SECRET = Buffer.from('Bitcoin seed', 'utf8');
@@ -55,8 +55,8 @@ type HDKeyConfig = {
 
 
 export class HDKey implements IHDKey {
-    #lowR;
-    #compressed;
+    #lowR: boolean;
+    #compressed: boolean;
     depth = 0;
     index = 0;
     #privateKey: Buffer | undefined;
@@ -82,7 +82,7 @@ export class HDKey implements IHDKey {
         hdkey.#setPrivateKey(IL);
         hdkey.#chainCode = IR;
 
-        return hdkey
+        return hdkey;
     }
 
     static #from(hdkey: HDKey) {
@@ -144,7 +144,7 @@ export class HDKey implements IHDKey {
 
 
         // if parse256(IL) >= n, proceed with the next value for i
-        if (!Crypto.secp256k1.isPrivate(IL)) return this.#deriveChild(index + 1);
+        if (!secp256k1.isPrivate(IL)) return this.#deriveChild(index + 1);
 
 
         // Private parent key -> private child key
@@ -152,7 +152,7 @@ export class HDKey implements IHDKey {
         if (this.#privateKey) {
             try {
                 // ki = parse256(IL) + kpar (mod n)
-                const ki = Buffer.from(Crypto.secp256k1.privateAdd(this.#privateKey, IL));
+                const ki = secp256k1.privateAdd(this.#privateKey, IL);
 
                 hd = HDKey.#from(this);
                 hd.#setPrivateKey(ki);
@@ -167,7 +167,7 @@ export class HDKey implements IHDKey {
             try {
                 // Ki = point(parse256(IL)) + Kpar
                 //    = G*IL + Kpar
-                const Ki = Buffer.from(Crypto.secp256k1.pointAdd(this.#publicKey!, IL, true));
+                const Ki = secp256k1.pointAdd(this.#publicKey!, IL, true);
 
                 hd = HDKey.#from(this);
                 hd.#setPublicKey(Ki);
@@ -189,8 +189,10 @@ export class HDKey implements IHDKey {
     sign(hash: Uint8Array): Buffer {
         if (!this.#privateKey) throw new Error('Missing private key');
 
-        const getSignature = (hash: Uint8Array, extra?: Uint8Array) => {
-            const signed = Crypto.secp256k1.sign(hash, this.#privateKey!, extra);
+        const getSignature = (hash: Uint8Array, extraEntropy?: Uint8Array) => {
+            const signed = Crypto.secp256k1
+                .sign(hash, this.#privateKey!, { extraEntropy })
+                .toCompactRawBytes();
             const recid = recidFromSignature(hash, this.#publicKey!, signed);
 
             return Buffer.concat([
@@ -225,16 +227,15 @@ export class HDKey implements IHDKey {
         const privateKey =
             this.#publicKey[0] === 2
                 ? this.#privateKey
-                : Crypto.secp256k1.privateAdd(
-                    Crypto.secp256k1.privateSub(N_LESS_1, this.#privateKey)!,
-                    ONE)!;
+                : secp256k1.privateNegate(this.#privateKey);
         const tweakHash = taggedHash(this.#publicKey.slice(1, 33), "TapTweak");
-        const newPrivateKey = Crypto.secp256k1.privateAdd(privateKey!, tweakHash);
+        const newPrivateKey = secp256k1.privateAdd(privateKey!, tweakHash);
         if (newPrivateKey === null) throw new Error('Invalid Tweak');
 
+        const rand = Crypto.secp256k1.utils.randomPrivateKey();
         return Buffer.from([
             // use random bytes for extra entropy
-            ...Crypto.secp256k1.signSchnorr(hash, newPrivateKey, randomBytes(32)),
+            ...Crypto.secp256k1.signSchnorr(hash, newPrivateKey, rand),
             0xFF
         ]);
     }
@@ -250,19 +251,19 @@ export class HDKey implements IHDKey {
 
     #setPrivateKey(value: Buffer) {
         if (value.length !== 32) throw Error('Private key must be 32 bytes.');
-        if (!Crypto.secp256k1.isPrivate(value)) throw Error('Invalid private key');
+        if (!secp256k1.isPrivate(value)) throw Error('Invalid private key');
 
         this.#privateKey = value;
-        this.#publicKey = Buffer.from(Crypto.secp256k1.pointFromScalar(value, true));
+        this.#publicKey = Buffer.from(secp256k1.pointFromScalar(value, true));
         const pubkeyHash = Buffer.from(Crypto.hash160(this.#publicKey));
         this.#fingerprint = pubkeyHash.slice(0, 4).readUInt32BE(0);
     }
 
     #setPublicKey(value: Buffer) {
         if (value.length !== 33 && value.length !== 65) throw Error('Public key must be 33 or 65 bytes.');
-        if (!Crypto.secp256k1.isPoint(value)) throw Error('Invalid public key');
+        if (!secp256k1.isPoint(value)) throw Error('Invalid public key');
 
-        this.#publicKey = Buffer.from(Crypto.secp256k1.pointCompress(value, true));
+        this.#publicKey = Buffer.from(secp256k1.pointCompress(value, true));
         const pubkeyHash = Buffer.from(Crypto.hash160(this.#publicKey));
         this.#fingerprint = pubkeyHash.slice(0, 4).readUInt32BE(0);
         this.#privateKey = undefined;
@@ -271,9 +272,7 @@ export class HDKey implements IHDKey {
     get publicKey() {
         if (!this.#publicKey) return undefined;
 
-        return Buffer.from(
-            Crypto.secp256k1.pointCompress(this.#publicKey, this.#compressed)
-        );
+        return secp256k1.pointCompress(this.#publicKey, this.#compressed);
     }
     get chainCode() { return this.#chainCode; }
     get fingerprint() { return this.#fingerprint; }

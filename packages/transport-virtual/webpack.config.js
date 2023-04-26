@@ -30,11 +30,12 @@ module.exports = {
         extensions: ['.ts', '.js'],
         fallback: {
             fs: false,
-            path: require.resolve("path-browserify"),
+            path: false,
         }
     },
     externals: {
-        "tiny-secp256k1": "tiny-secp256k1",
+        "react-native-logs": "react-native-logs",
+        "@secux/protocol-transaction": "@secux/protocol-transaction",
         "@secux/transport": "@secux/transport",
         "@secux/utility": "@secux/utility",
         "ow": "ow"

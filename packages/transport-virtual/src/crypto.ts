@@ -19,8 +19,15 @@ limitations under the License.
 
 import { sha256, sha512, ripemd160, hmac } from "hash.js";
 import { keccak_256 } from "@noble/hashes/sha3";
+import type { secp256k1, schnorr } from "@noble/curves/secp256k1";
 import type * as nacl from "tweetnacl";
 export { Crypto };
+
+
+interface ISchnorr {
+    signSchnorr: typeof schnorr.sign;
+    verifySchnorr: typeof schnorr.verify;
+}
 
 
 class Crypto {
@@ -62,7 +69,7 @@ class Crypto {
         return keccak_256.create().update(data).digest();
     }
 
-    static get secp256k1(): any {
+    static get secp256k1(): typeof secp256k1 & ISchnorr {
         throw Error("module not loaded.");
     }
 
@@ -77,12 +84,16 @@ class Crypto {
 
 
 (async () => {
-    const schnorr = await import("tiny-secp256k1");
+    const { secp256k1, schnorr } = await import("@noble/curves/secp256k1");
     Object.defineProperty(Crypto, "secp256k1", {
         enumerable: false,
         configurable: false,
         writable: false,
-        value: Object.freeze(schnorr)
+        value: Object.freeze({
+            ...secp256k1,
+            signSchnorr: schnorr.sign,
+            verifySchnorr: schnorr.verify
+        })
     });
 })();
 
