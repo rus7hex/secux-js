@@ -26,13 +26,12 @@
     "build": "sh ../../build.sh"
   },
   "dependencies": {
+    "@noble/curves": "^1.0.0",
     "@secux/transport": "^3.1.2",
     "bip39": "^3.0.4",
     "cardano-crypto.js": "^6.1.0",
     "elliptic": "^6.5.4",
     "hash.js": "^1.1.7",
-    "keccak": "^3.0.2",
-    "pbkdf2": "^3.1.2",
     "randombytes": "^2.1.0",
     "tiny-secp256k1": "^2.1.2",
     "tweetnacl": "^1.0.3",

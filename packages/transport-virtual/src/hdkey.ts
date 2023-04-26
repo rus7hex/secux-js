@@ -20,7 +20,8 @@ limitations under the License.
 import { Crypto } from "./crypto";
 import { taggedHash } from "./hashdef";
 import { recidFromSignature } from "@secux/utility/lib/secp256k1";
-import { pbkdf2Sync } from "pbkdf2";
+import { pbkdf2 } from "@noble/hashes/pbkdf2";
+import { sha512 } from "@noble/hashes/sha512";
 const randomBytes = require("randombytes");
 
 
@@ -386,15 +387,17 @@ export class BIP32ED25519 implements IHDKey {
 
 
     static generateSeed(mnemonic: string, passphrase = ''): Buffer {
-        const seed = pbkdf2Sync(
+        const seed = pbkdf2(
+            sha512,
             mnemonic.normalize("NFKD"),
             `mnemonic${passphrase}`.normalize("NFKD"),
-            2048,
-            64,
-            "sha512"
+            {
+                c: 2048,
+                dkLen: 64,
+            }
         );
 
-        return seed;
+        return Buffer.from(seed);
     }
 
     static fromMasterSeed(seedBuffer: Buffer): BIP32ED25519 {
