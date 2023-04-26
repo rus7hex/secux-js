@@ -18,9 +18,8 @@ limitations under the License.
 
 
 import { sha256, sha512, ripemd160, hmac } from "hash.js";
-const createHash = require('keccak');
-import * as nacl from "tweetnacl";
-const cardano = require("cardano-crypto.js");
+import { keccak_256 } from "@noble/hashes/sha3";
+import type * as nacl from "tweetnacl";
 export { Crypto };
 
 
@@ -60,39 +59,49 @@ class Crypto {
     }
 
     static keccak256(data: Uint8Array): Uint8Array {
-        return createHash("keccak256")
-            .update(Buffer.from(data))
-            .digest();
+        return keccak_256.create().update(data).digest();
     }
 
     static get secp256k1(): any {
         throw Error("module not loaded.");
     }
 
-    static readonly ed25519 = Object.freeze(nacl);
+    static get ed25519(): nacl {
+        throw Error("module not loaded.");
+    }
 
-    static readonly ed25519_ada = Object.freeze(cardano);
+    static get ed25519_ada(): any {
+        throw Error("module not loaded.");
+    }
 }
 
 
 (async () => {
     const schnorr = await import("tiny-secp256k1");
     Object.defineProperty(Crypto, "secp256k1", {
-        enumerable: true,
+        enumerable: false,
         configurable: false,
         writable: false,
         value: Object.freeze(schnorr)
     });
 })();
 
-Object.defineProperty(Crypto, "ed25519", {
-    enumerable: true,
-    configurable: false,
-    writable: false
-});
+(async () => {
+    const nacl = await import("tweetnacl");
+    Object.defineProperty(Crypto, "ed25519", {
+        enumerable: false,
+        configurable: false,
+        writable: false,
+        value: Object.freeze(nacl)
+    });
+})();
 
-Object.defineProperty(Crypto, "ed25519_ada", {
-    enumerable: true,
-    configurable: false,
-    writable: false
-});
+(async () => {
+    const cardano = await import("cardano-crypto.js");
+    Object.defineProperty(Crypto, "ed25519_ada", {
+        enumerable: false,
+        configurable: false,
+        writable: false,
+        value: Object.freeze(cardano)
+    });
+})();
