@@ -51,15 +51,17 @@ Object.defineProperty(global, "@secux/protocol-transaction", {
     value: Object.freeze(require("@secux/protocol-transaction"))
 });
 
-if (!global["@secux/transport"]) {
-    global["@secux/transport"] = {
-        ITransport: {}
-    };
-}
+Object.defineProperty(global, "@secux/transport", {
+    enumerable: false,
+    configurable: false,
+    writable: false,
+    value: Object.freeze(require("@secux/transport"))
+});
 
 
 export { isSupportedCoin, toExtenededPublicKey, Signature } from "@secux/utility";
 export { to_L1_APDU } from "@secux/utility/lib/communication";
+export { ITransport } from "@secux/transport";
 export { SecuxTransactionTool } from "@secux/protocol-transaction";
 export { SecuxDevice, SecuxDeviceNifty } from "@secux/protocol-device";
 export { SecuxScreenDevice } from "@secux/protocol-device/lib/protocol-screendevice";

@@ -48,7 +48,6 @@ module.exports = {
     },
     externals: {
         "react-native-logs": "react-native-logs",
-        "@secux/transport": "@secux/transport",
     },
     experiments: {
         asyncWebAssembly: true
