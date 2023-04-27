@@ -7,7 +7,7 @@ const nodepolyfillPlugin = new webpack.ProvidePlugin({
 
 
 module.exports = {
-    entry: "./src/transport-virtual.ts",
+    entry: "./bundler.js",
     output: {
         path: `${__dirname}/dist`,
         filename: 'index.js',

@@ -1,6 +1,6 @@
 {
   "name": "@secux/transport-signer",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "SecuX software signer for communication layer",
   "keywords": [
     "secux",
@@ -36,5 +36,8 @@
   },
   "peerDependencies": {
     "@secux/protocol-transaction": "^3.1.0"
+  },
+  "devDependencies": {
+    "text-encoding": "^0.7.0"
   }
 }
