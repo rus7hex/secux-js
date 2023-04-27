@@ -32,7 +32,6 @@
     "cardano-crypto.js": "^6.1.0",
     "elliptic": "^6.5.4",
     "hash.js": "^1.1.7",
-    "tweetnacl": "^1.0.3",
     "varuint-bitcoin": "^1.1.2"
   },
   "peerDependencies": {

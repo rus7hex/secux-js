@@ -19,8 +19,8 @@ limitations under the License.
 
 import { sha256, sha512, ripemd160, hmac } from "hash.js";
 import { keccak_256 } from "@noble/hashes/sha3";
-import type { secp256k1, schnorr } from "@noble/curves/secp256k1";
-import type * as nacl from "tweetnacl";
+import type { secp256k1 as ISECP256k1, schnorr } from "@noble/curves/secp256k1";
+import type { ed25519 as IED25519 } from "@noble/curves/ed25519";
 export { Crypto };
 
 
@@ -69,50 +69,45 @@ class Crypto {
         return keccak_256.create().update(data).digest();
     }
 
-    static get secp256k1(): typeof secp256k1 & ISchnorr {
-        throw Error("module not loaded.");
-    }
-
-    static get ed25519(): nacl {
-        throw Error("module not loaded.");
-    }
-
-    static get ed25519_ada(): any {
-        throw Error("module not loaded.");
-    }
-}
-
-
-(async () => {
-    const { secp256k1, schnorr } = await import("@noble/curves/secp256k1");
-    Object.defineProperty(Crypto, "secp256k1", {
-        enumerable: false,
-        configurable: false,
-        writable: false,
-        value: Object.freeze({
+    static get secp256k1(): typeof ISECP256k1 & ISchnorr {
+        const { secp256k1, schnorr } = require("@noble/curves/secp256k1");
+        const module = {
             ...secp256k1,
             signSchnorr: schnorr.sign,
             verifySchnorr: schnorr.verify
-        })
-    });
-})();
+        };
 
-(async () => {
-    const nacl = await import("tweetnacl");
-    Object.defineProperty(Crypto, "ed25519", {
-        enumerable: false,
-        configurable: false,
-        writable: false,
-        value: Object.freeze(nacl)
-    });
-})();
+        Object.defineProperty(Crypto, "secp256k1", {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: Object.freeze(module)
+        });
 
-(async () => {
-    const cardano = await import("cardano-crypto.js");
-    Object.defineProperty(Crypto, "ed25519_ada", {
-        enumerable: false,
-        configurable: false,
-        writable: false,
-        value: Object.freeze(cardano)
-    });
-})();
+        return module;
+    }
+
+    static get ed25519(): typeof IED25519 {
+        const { ed25519 } = require("@noble/curves/ed25519");
+        Object.defineProperty(Crypto, "ed25519", {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: Object.freeze(ed25519)
+        });
+
+        return ed25519;
+    }
+
+    static get ed25519_ada(): any {
+        const cardano = require("cardano-crypto.js");
+        Object.defineProperty(Crypto, "ed25519_ada", {
+            enumerable: false,
+            configurable: false,
+            writable: false,
+            value: Object.freeze(cardano)
+        });
+
+        return cardano;
+    }
+}

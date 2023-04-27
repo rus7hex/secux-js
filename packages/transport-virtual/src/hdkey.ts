@@ -329,12 +329,12 @@ export class HDKeyED25519 implements IHDKey {
     sign(hash: Uint8Array): Buffer {
         if (!this.#privateKey) throw Error('Missing private key');
 
-        const signature = Crypto.ed25519.sign.detached(hash, Buffer.concat([this.#privateKey, this.#publicKey!]));
+        const signature = Crypto.ed25519.sign(hash, this.#privateKey);
         return Buffer.from([...signature, 0x00]);
     }
 
     verify(hash: Uint8Array, signature: Uint8Array): boolean {
-        return Crypto.ed25519.sign.detached.verify(hash, signature, this.#publicKey!);
+        return Crypto.ed25519.verify(hash, signature, this.#publicKey!);
     }
 
     get publicKey() { return this.#publicKey; }
@@ -345,8 +345,7 @@ export class HDKeyED25519 implements IHDKey {
         if (value.length !== 32) throw Error('Private key must be 32 bytes.');
 
         this.#privateKey = value;
-        const keypair = Crypto.ed25519.sign.keyPair.fromSeed(value);
-        this.#publicKey = Buffer.from(keypair.publicKey);
+        this.#publicKey = Buffer.from(Crypto.ed25519.getPublicKey(value));
         const pubkeyHash = Buffer.from(Crypto.hash160(this.#publicKey));
         this.#fingerprint = pubkeyHash.slice(0, 4).readUInt32BE(0);
     }
