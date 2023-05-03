@@ -130,7 +130,7 @@ export function test(GetDevice) {
         });
 
         it("sync image to gallery", async () => {
-            const dataList = SecuxDeviceNifty.prepareSendImage(
+            await GetDevice().sendImage(
                 "sandman.jpg",
                 img,
                 {
@@ -142,11 +142,6 @@ export function test(GetDevice) {
                     tokenId: "0x21de",
                 }
             );
-
-            for (const data of dataList) await GetDevice().Exchange(data);
-
-            const data = SecuxDeviceNifty.prepareFinishSync();
-            await GetDevice().Exchange(data);
         }).timeout(10000);
 
         it("sync image to logo", async () => {
