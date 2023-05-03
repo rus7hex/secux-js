@@ -26,7 +26,8 @@ import {
 } from "@secux/utility/lib/communication";
 import {
     AddressOption, VersionInfo, WalletInfo, ow_AddressOption, ow_FileMode, FileMode, FileInfo,
-    ow_FileInfo, ContentKey, FileDestination, FileType, FileAttachment, ow_FileAttachment, ow_filename
+    ow_FileInfo, ContentKey, FileDestination, FileType, FileAttachment, ow_FileAttachment, ow_filename,
+    AttachmentExt
 } from "./interface";
 import { BigNumber } from 'bignumber.js';
 import ow from "ow";
@@ -326,6 +327,8 @@ class SecuxDeviceNifty {
      * @returns {Array<communicationData>} data for sending to device
      */
     static prepareSendImage(filename: string, file: communicationData, attachment?: FileAttachment, destination = FileDestination.GALLERY): Array<communicationData> {
+        commandForNifty();
+
         ow(filename, ow.string.nonEmpty);
         ow(file, ow_communicationData);
         ow(attachment, ow.any(ow.undefined, ow_FileAttachment));
@@ -427,6 +430,13 @@ class SecuxDeviceNifty {
      * @returns {communicationData} data for sending to device
      */
     static prepareListGalleryFiles(): communicationData {
+        try {
+            return SecuxDeviceNifty.#prepareListGalleryFilesV2();
+        } catch (error) {
+            // do nothing
+            logger.debug(`prepareListGalleryFilesV2 failed: \n${error}`);
+        }
+
         return SecuxDeviceNifty.prepareFileOperation(
             FileMode.READ,
             {
@@ -434,6 +444,23 @@ class SecuxDeviceNifty {
                 destination: FileDestination.GALLERY,
                 type: 0,
                 name: "*.png|*.jpg"
+            }
+        );
+    }
+
+    static #prepareListGalleryFilesV2(): communicationData {
+        checkFwForMultichainGallery();
+        const chains = Object.values(AttachmentExt)
+            .map(ext => `*.${ext}`)
+            .join('|');
+
+        return SecuxDeviceNifty.prepareFileOperation(
+            FileMode.READ,
+            {
+                size: 0,
+                destination: FileDestination.GALLERY,
+                type: 0,
+                name: chains
             }
         );
     }
@@ -563,6 +590,23 @@ export function checkFwForUint64ChainId() {
     checkFWVersion(FirmwareType.mcu, UInt64ChainId[ITransport.deviceType], ITransport.mcuVersion);
 }
 
+const MultichainGallery = {
+    nifty: "2.07",
+}
+function checkFwForMultichainGallery() {
+    let ITransport;
+    try {
+        ITransport = require("@secux/transport").ITransport;
+    } catch (error) {
+        // Transport layer not found
+        return;
+    }
+    if (!ITransport) return;
+
+    //@ts-ignore
+    checkFWVersion(FirmwareType.mcu, MultichainGallery[ITransport.deviceType], ITransport.mcuVersion);
+}
+
 function commandForNifty() {
     let ITransport;
     try {
@@ -653,10 +697,28 @@ try {
             configurable: false,
             writable: false,
             value: async function (...args: any[]) {
+                ow(args[2], ow_FileAttachment);
+
                 //@ts-ignore
                 const bufList = SecuxDeviceNifty.prepareSendImage(...args);
                 for (const buf of bufList) {
                     await this.Exchange(getBuffer(buf));
+                }
+
+                await this.finishSync();
+
+                try {
+                    checkFwForMultichainGallery();
+
+                    // update gallery table (append)
+                    const table = await this.listGalleryFiles();
+                    const fileWithoutExt = /(.*)\.(\w+)$/.exec(args[0])![1];
+                    const set = new Set(table);
+                    set.add(`${fileWithoutExt}.${AttachmentExt[args[2].type]}`);
+                    await this.updateGalleryTable([...set]);
+                } catch (error) {
+                    // do nothing
+                    logger.debug(`update gallery table failed: \n${error}`);
                 }
             }
         },

@@ -135,13 +135,24 @@ export enum FileType {
 export const ow_FileType = ow.number.inRange(0, FileType.__LENGTH);
 
 export enum AttachmentType {
-    Ethereum = 1,
+    Bitcoin,
+    Ethereum,
     Polygon,
     Solana,
     BSC,
+    Agence,
     __LENGTH
 }
 export const ow_AttachmentType = ow.number.inRange(0, AttachmentType.__LENGTH);
+
+export const AttachmentExt = Object.freeze({
+    [AttachmentType.Bitcoin]: "btc",
+    [AttachmentType.Ethereum]: "eth",
+    [AttachmentType.Polygon]: "plg",
+    [AttachmentType.Solana]: "sol",
+    [AttachmentType.BSC]: "bsc",
+    [AttachmentType.Agence]: "hme",
+});
 
 export enum ContentKey {
     tokenId = 1,
