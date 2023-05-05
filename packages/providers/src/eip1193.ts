@@ -218,16 +218,18 @@ export class EIP1193Provider extends EthereumProvider {
         ow(params, ow.object.partialShape({
             from: ow.any(ow.undefined, ow_address),
             to: ow_address,
-            gas: ow.any(ow.undefined, owTool.prefixedhexString),
-            gasPrice: ow.any(ow.undefined, owTool.prefixedhexString),
-            value: ow.any(ow.undefined, owTool.prefixedhexString),
+            gas: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
+            gasPrice: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
+            value: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
             data: ow.any(ow.undefined, owTool.prefixedhexString),
-            nonce: ow.any(ow.undefined, owTool.prefixedhexString),
+            nonce: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
         }));
         if (!this.#address) throw "wallet not available";
-        if (params.from && params.from !== this.#address) throw `unknown wallet address ${params.from}`;
+        if (params.from && params.from.toLowerCase() !== this.#address.toLowerCase()) {
+            throw `unknown wallet address ${params.from}, expect ${this.#address}`;
+        }
 
-        await this.#fetchData(params);
+        await this.#prepareData(params);
         const tx = this.#useEIP1559 ?
             {
                 ...params,
@@ -249,8 +251,13 @@ export class EIP1193Provider extends EthereumProvider {
         return raw_tx;
     }
 
-    async #fetchData(params: any) {
-        if (!params.value) params.value = "0x0";
+    async #prepareData(params: any) {
+        if (!params.value) {
+            params.value = "0x0";
+        }
+        else {
+            params.value = `0x${BigNumber(params.value).toString(16)}`;
+        }
 
         if (!params.gas) {
             const { from, to, data } = params;
@@ -261,6 +268,9 @@ export class EIP1193Provider extends EthereumProvider {
                 }
             );
         }
+        else {
+            params.gas = `0x${BigNumber(params.gas).toString(16)}`;
+        }
 
         if (!params.gasPrice) {
             params.gasPrice = await this.request(
@@ -268,6 +278,9 @@ export class EIP1193Provider extends EthereumProvider {
                     method: "eth_gasPrice"
                 }
             );
+        }
+        else {
+            params.gasPrice = `0x${BigNumber(params.gasPrice).toString(16)}`;
         }
 
         if (!params.nonce) {
@@ -277,6 +290,9 @@ export class EIP1193Provider extends EthereumProvider {
                     params: [this.#address, "latest"]
                 }
             );
+        }
+        else {
+            params.nonce = `0x${BigNumber(params.nonce).toString(16)}`;
         }
     }
 
