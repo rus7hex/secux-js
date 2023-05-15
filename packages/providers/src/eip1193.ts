@@ -188,7 +188,7 @@ export class EIP1193Provider extends EthereumProvider {
 
         const address = await this.#transport.getAddress(this.#path);
 
-        if (this.#address && this.#address !== address) {
+        if (this.#address && this.#address.toLowerCase() !== address.toLowerCase()) {
             this.events.emit("accountsChanged", [address]);
         }
         this.#address = address;
@@ -314,7 +314,9 @@ export class EIP1193Provider extends EthereumProvider {
             throw "Invalid parameters: must provide an Ethereum address.";
         }
 
-        if (address && address !== this.#address) throw `unknown wallet address ${address}`;
+        if (address && address.toLowerCase() !== this.#address.toLowerCase()) {
+            throw `unknown wallet address ${address}`;
+        }
     }
 }
 

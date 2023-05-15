@@ -84,7 +84,7 @@ describe("EIP-1193 provider", () => {
     }).timeout(30000);
 
     it("personal_sign", async () => {
-        const address = (await provider_test.request({ method: "eth_accounts" }))[0];
+        const address = "0x9858EFFD232B4033E47D90003D41EC34ECAEDA94";
 
         let signature;
         try {
