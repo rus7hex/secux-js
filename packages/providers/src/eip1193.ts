@@ -221,7 +221,7 @@ export class EIP1193Provider extends EthereumProvider {
             gas: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
             gasPrice: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
             value: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
-            data: ow.any(ow.undefined, owTool.prefixedhexString),
+            data: ow.any(ow.undefined, owTool.prefixedhexString, ow.string.equals("0x")),
             nonce: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
         }));
         if (!this.#address) throw "wallet not available";
