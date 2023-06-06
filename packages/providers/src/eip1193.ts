@@ -89,6 +89,7 @@ export class EIP1193Provider extends EthereumProvider {
             case "eth_sendTransaction": {
                 const params = request.params?.[0];
                 if (!params) throw "missing value for required argument 0";
+                await this.prepareData(params);
                 const tx = await this.#signTransaction(params);
                 return await super.request({ method: "eth_sendRawTransaction", params: [tx] });
             }
@@ -196,6 +197,53 @@ export class EIP1193Provider extends EthereumProvider {
         return address;
     }
 
+    async prepareData(params: any) {
+        if (!params.value) {
+            params.value = "0x0";
+        }
+        else {
+            params.value = `0x${BigNumber(params.value).toString(16)}`;
+        }
+
+        const gas = BigNumber(params.gas);
+        if (!gas.isFinite() || gas.lte(0)) {
+            const { from, to, value, data } = params;
+            params.gas = await this.request(
+                {
+                    method: "eth_estimateGas",
+                    params: [{ from, to, value, data }]
+                }
+            );
+        }
+        else {
+            params.gas = `0x${gas.toString(16)}`;
+        }
+
+        const gasPrice = BigNumber(params.gasPrice);
+        if (!gasPrice.isFinite() || gasPrice.lte(0)) {
+            params.gasPrice = await this.request(
+                {
+                    method: "eth_gasPrice"
+                }
+            );
+        }
+        else {
+            params.gasPrice = `0x${gasPrice.toString(16)}`;
+        }
+
+        if (!params.nonce) {
+            params.nonce = await this.request(
+                {
+                    method: "eth_getTransactionCount",
+                    params: [this.#address, "latest"]
+                }
+            );
+        }
+        else {
+            params.nonce = `0x${BigNumber(params.nonce).toString(16)}`;
+        }
+    }
+
     async #findDevice(type: string): Promise<ITransport> {
         const _disconnected = async () => {
             this.#address = '';
@@ -229,7 +277,6 @@ export class EIP1193Provider extends EthereumProvider {
             throw `unknown wallet address ${params.from}, expect ${this.#address}`;
         }
 
-        await this.#prepareData(params);
         const tx = this.#useEIP1559 ?
             {
                 ...params,
@@ -249,51 +296,6 @@ export class EIP1193Provider extends EthereumProvider {
 
         const { raw_tx } = await this.#transport!.sign(this.#path, tx);
         return raw_tx;
-    }
-
-    async #prepareData(params: any) {
-        if (!params.value) {
-            params.value = "0x0";
-        }
-        else {
-            params.value = `0x${BigNumber(params.value).toString(16)}`;
-        }
-
-        if (!params.gas) {
-            const { from, to, data } = params;
-            params.gas = await this.request(
-                {
-                    method: "eth_estimateGas",
-                    params: [{ from, to, data }]
-                }
-            );
-        }
-        else {
-            params.gas = `0x${BigNumber(params.gas).toString(16)}`;
-        }
-
-        if (!params.gasPrice) {
-            params.gasPrice = await this.request(
-                {
-                    method: "eth_gasPrice"
-                }
-            );
-        }
-        else {
-            params.gasPrice = `0x${BigNumber(params.gasPrice).toString(16)}`;
-        }
-
-        if (!params.nonce) {
-            params.nonce = await this.request(
-                {
-                    method: "eth_getTransactionCount",
-                    params: [this.#address, "latest"]
-                }
-            );
-        }
-        else {
-            params.nonce = `0x${BigNumber(params.nonce).toString(16)}`;
-        }
     }
 
     async #is_EIP1559_Supported(): Promise<boolean> {
