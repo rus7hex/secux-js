@@ -13,6 +13,9 @@ document.getElementById("connect").onclick =
 
         console.log(webhid.DeviceName);
 
+        const id = await webhid.getCustomerId();
+        console.log(`customer id: ${id}`);
+
         mocha.run();
     };
 

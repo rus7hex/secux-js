@@ -165,6 +165,18 @@ class SecuxDevice {
         const rsp = toAPDUResponse(getBuffer(response));
         if (rsp.status !== StatusCode.SUCCESS) throw new TransportStatusError(rsp.status);
     }
+
+    static prepareGetCustomerId(): communicationData {
+        return Send(0x70, 0x63);
+    }
+
+    static resolveCustomerId(response: communicationData): string {
+        ow(response, ow_communicationData);
+
+        const rsp = toAPDUResponse(getBuffer(response));
+        const id = rsp.data.readUInt32LE();
+        return `0x${id.toString(16)}`;
+    }
 }
 
 
@@ -192,7 +204,7 @@ class SecuxDeviceNifty {
      * @param {communicationData} response data from device
      * @returns {NiftyWalletInfo} object
      */
-    static resolveWalletInfo(response: communicationData): { PartNumber: string, SerialNumber: string, DeviceName: string } {
+    static resolveWalletInfo(response: communicationData): { PartNumber: string, SerialNumber: string, DeviceName: string, CustomerId: string } {
         ow(response, ow_communicationData);
 
         const data = getBuffer(response);
@@ -203,7 +215,8 @@ class SecuxDeviceNifty {
         const info = {
             PartNumber: '',
             SerialNumber: '',
-            DeviceName: ''
+            DeviceName: '',
+            CustomerId: '',
         };
 
         const keyValueList = getBuffer(response).slice(4).toString("utf8").split(',');
@@ -222,6 +235,9 @@ class SecuxDeviceNifty {
                 case "11":
                     info.SerialNumber = value;
                     break;
+
+                case "12":
+                    info.CustomerId = value;
             }
         }
 
@@ -670,6 +686,26 @@ try {
             }
         },
 
+        getCustomerId: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                if (this.DeviceType === DeviceType.nifty) {
+                    //@ts-ignore
+                    const buf = SecuxDeviceNifty.prepareGetWalletInfo(...args);
+                    const rsp = await this.Exchange(getBuffer(buf));
+                    const info = SecuxDeviceNifty.resolveWalletInfo(rsp);
+                    return info.CustomerId;
+                }
+
+                //@ts-ignore
+                const buf = SecuxDevice.prepareGetCustomerId(...args);
+                const rsp = await this.Exchange(getBuffer(buf));
+                return SecuxDevice.resolveCustomerId(rsp);
+            }
+        },
+
         setWalletName: {
             enumerable: true,
             configurable: false,
@@ -892,6 +928,7 @@ try {
  * @property {string} PartNumber part number on device
  * @property {string} SerialNumber serial number on device
  * @property {string} DeviceName custom name on deivce
+ * @property {string} CustomerId customer id on device
  */
 
 /**

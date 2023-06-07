@@ -19,6 +19,9 @@ document.getElementById("connect").addEventListener("click",
 
         console.log(webble.DeviceName);
 
+        const id = await webble.getCustomerId();
+        console.log(`customer id: ${id}`);
+
         mocha.run();
     }
 );

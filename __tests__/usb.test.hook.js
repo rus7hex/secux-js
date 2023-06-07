@@ -13,6 +13,9 @@ document.getElementById("connect").onclick =
 
         console.log(webusb.DeviceName);
 
+        const id = await webusb.getCustomerId();
+        console.log(`customer id: ${id}`);
+
         mocha.run();
     };
 
