@@ -146,9 +146,14 @@ abstract class ITransport {
         // begin signing
         this.#sendImage = false;
         const task = this.sign(...args);
-        while (!this.#sendImage) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        await new Promise(resolve => {
+            const timer = setInterval(() => {
+                if (this.#sendImage) {
+                    resolve(1);
+                    clearInterval(timer);
+                }
+            }, 100);
+        });
 
         // send image
         for (const data of dataList) await this.Exchange(getBuffer(data));
@@ -205,15 +210,18 @@ abstract class ITransport {
             isTerminated = !this.#resovled?.data;
         }, this.#timeout);
 
-        //@ts-ignore
-        while (!this.#resovled?.data) {
-            await new Promise(resolve => setTimeout(resolve, 1));
-
-            if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
-        }
-
-        //@ts-ignore
-        return this.#resovled.data;
+        return await new Promise((resolve, reject) => {
+            const timer = setInterval(() => {
+                if (this.#resovled?.data) {
+                    resolve(this.#resovled.data);
+                    clearInterval(timer);
+                }
+                else if (isTerminated) {
+                    reject(`TransferError: timeout (${this.#timeout} ms)`);
+                    clearInterval(timer);
+                }
+            }, 1);
+        });
     }
 
     #ReceiveData(data: Buffer) {
@@ -272,20 +280,33 @@ abstract class ITransport {
             }, this.#timeout);
         }
 
-        while (this.#isRunning) {
-            await new Promise(resolve => setTimeout(resolve, 1));
-
-            if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
-        }
+        await new Promise((resolve, reject) => {
+            const timer = setInterval(() => {
+                if (!this.#isRunning) {
+                    resolve(1);
+                    clearInterval(timer);
+                }
+                else if (isTerminated) {
+                    reject(`TransferError: timeout (${this.#timeout} ms)`);
+                    clearInterval(timer);
+                }
+            }, 1);
+        });
 
         // when signing with image on nifty, it needs to skip the command for image.
         if (this.#version === ITransport.PROTOCOLv2 && isAPDU) {
-            while (this.#resovled?.type !== ResponseType.APDU) {
-                await new Promise(resolve => setTimeout(resolve, 1));
-
-                if (this.#error) break;
-                if (isTerminated) throw Error(`TransferError: timeout (${this.#timeout} ms)`);
-            }
+            await new Promise((resolve, reject) => {
+                const timer = setInterval(() => {
+                    if (this.#resovled?.type === ResponseType.APDU || this.#error) {
+                        resolve(1);
+                        clearInterval(timer);
+                    }
+                    else if (isTerminated) {
+                        reject(`TransferError: timeout (${this.#timeout} ms)`);
+                        clearInterval(timer);
+                    }
+                }, 1);
+            });
         }
 
         if (this.#error) throw this.#error;
