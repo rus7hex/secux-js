@@ -1,6 +1,6 @@
 {
   "name": "@secux/js-sdk",
-  "version": "3.0.9",
+  "version": "3.0.10",
   "description": "A JavaScript library for SecuX hardware wallet",
   "keywords": [
     "secux",

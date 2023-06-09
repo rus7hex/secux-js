@@ -32,7 +32,16 @@ export type VersionInfo = {
     bootloaderVersion: string
 }
 
+// bitwise configuration [6][5][4][3][2][1][0]
+// [0]: wait for activation
+// [1]: activated
+// [4]: SEED_0 from raw seed
+// [5]: SEED_0 from mnemonic
+// [6]: SEED_1
 export enum WalletStatus {
+    NO_SEED = 0,
+    LOGOUT = 1,
+    NORMAL_RAW = 18,
     NORMAL = 34,
     HIDDEN = 98
 }
@@ -46,7 +55,7 @@ export type WalletInfo = {
 export enum SEMode {
     NORMAL = 2,
     HIDDEN = 3,
-    INIT = 7
+    LOGOUT = 7
 }
 
 export type SEINFO = {

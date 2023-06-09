@@ -27,7 +27,7 @@ import {
 import {
     AddressOption, VersionInfo, WalletInfo, ow_AddressOption, ow_FileMode, FileMode, FileInfo,
     ow_FileInfo, ContentKey, FileDestination, FileType, FileAttachment, ow_FileAttachment, ow_filename,
-    AttachmentExt
+    AttachmentExt, WalletStatus
 } from "./interface";
 import { BigNumber } from 'bignumber.js';
 import ow from "ow";
@@ -105,7 +105,10 @@ class SecuxDevice {
 
         const rsp = toAPDUResponse(getBuffer(response));
 
-        const walletStatus = rsp.data.readUInt8(0);
+        let walletStatus = rsp.data.readUInt8(0);
+        if (walletStatus & WalletStatus.LOGOUT) walletStatus = WalletStatus.LOGOUT;
+        if (!WalletStatus[walletStatus]) walletStatus = WalletStatus.NO_SEED;
+
         const walletName = Buffer.from(rsp.data.slice(1, 33).filter(c => c !== 0)).toString();
         const walletIndex = rsp.data.readUInt32LE(33);
 
