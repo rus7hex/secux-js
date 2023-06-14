@@ -178,7 +178,7 @@ class SecuxDevice {
 
         const rsp = toAPDUResponse(getBuffer(response));
         const id = rsp.data.readUInt32LE();
-        return `0x${id.toString(16)}`;
+        return `0x${id.toString(16).padStart(8, '0')}`;
     }
 }
 
