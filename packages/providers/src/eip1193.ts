@@ -242,6 +242,11 @@ export class EIP1193Provider extends EthereumProvider {
         else {
             params.nonce = `0x${BigNumber(params.nonce).toString(16)}`;
         }
+
+        // clean data field
+        for (const key of Object.keys(params)) {
+            if (!params[key]) delete params[key];
+        }
     }
 
     async #findDevice(type: string): Promise<ITransport> {
