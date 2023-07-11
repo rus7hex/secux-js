@@ -31,6 +31,7 @@ import { ow_address } from "@secux/app-eth/lib/interface";
 import { Logger, owTool } from "@secux/utility";
 import { getBuffer } from "@secux/utility/lib/communication";
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
+import { getPriorityFee } from "./fee";
 import "./http";
 import ow from "ow";
 const logger = Logger?.child({ id: "provider" });
@@ -231,6 +232,14 @@ export class EIP1193Provider extends EthereumProvider {
             params.gasPrice = `0x${gasPrice.toString(16)}`;
         }
 
+        // estimate EIP-1559 priority fee if not provided
+        if (this.#useEIP1559 && !params.priorityFee) {
+            const priority = (await getPriorityFee(this, [50]))[0];
+            params.priorityFee = priority;
+
+            logger?.debug(`estimate priority fee: ${BigNumber(priority).div(1e9).toFixed(2)} Gwei`);
+        }
+
         if (!params.nonce) {
             params.nonce = await this.request(
                 {
@@ -273,6 +282,7 @@ export class EIP1193Provider extends EthereumProvider {
             to: ow_address,
             gas: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
             gasPrice: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
+            priorityFee: ow.any(ow.undefined, ow.number.positive, owTool.prefixedhexString, owTool.numberString),
             value: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
             data: ow.any(ow.undefined, owTool.prefixedhexString, ow.string.equals("0x")),
             nonce: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
@@ -287,9 +297,8 @@ export class EIP1193Provider extends EthereumProvider {
                 ...params,
                 gasLimit: params.gas,
                 chainId: this.#chainId,
-                // default priority fee: 1 Gwei
-                maxFeePerGas: `0x${BigNumber(params.gasPrice!).plus("0x3b9aca00").toString(16)}`,
-                maxPriorityFeePerGas: "0x3b9aca00",
+                maxFeePerGas: `0x${BigNumber(params.gasPrice!).plus(params.priorityFee!).toString(16)}`,
+                maxPriorityFeePerGas: params.priorityFee!,
             }
             :
             {
