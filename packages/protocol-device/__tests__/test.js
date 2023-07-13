@@ -80,6 +80,14 @@ export function test(GetDevice) {
 
                 assert.equal(bootloaderVersion, '1.9');
             });
+
+            it('query device type', async () => {
+                const buf = SecuxDevice.prepareGetVersion();
+                const rsp = await GetDevice().Exchange(buf);
+                const { model } = SecuxDevice.resolveVersion(rsp);
+
+                assert.equal(model, 1);
+            });
         });
 
         describe('SecuxDevice.getWalletInfo()', () => {

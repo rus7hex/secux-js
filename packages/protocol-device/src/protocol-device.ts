@@ -57,33 +57,36 @@ class SecuxDevice {
 
 
         const rsp = toAPDUResponse(getBuffer(response));
+        const fieldCount = rsp.data.readUInt8(0);
 
-        const versionCount = rsp.data.readUInt8(0);
-        const versionData = rsp.data.slice(1);
+        let tmp = rsp.data.slice(1);
+        const numberValue = () => {
+            const length = tmp.readUInt8(0);
+            const hex = tmp.slice(1, length + 1).reverse().toString("hex");
+            tmp = tmp.slice(length + 1);
+            return BigNumber(hex, 16).toNumber();
+        };
+        const stringValue = () => {
+            const length = tmp.readUInt8(0);
+            const str = tmp.slice(1, length + 1).toString("utf8");
+            tmp = tmp.slice(length + 1);
+            return str;
+        };
 
-        // first version is transportVersion, it's a number type and length is 1
-        const transportVersion = versionData.readUInt8(1);
-
-        let tmp = versionData.slice(1 + versionData.readUInt8(0));  // trim first version block
-        let decode: Array<string> = [];
-        let versionDataLength = tmp.length;
-        while (versionDataLength > 0) {
-            const versionLength = tmp.readUInt8(0);
-            const version = tmp.slice(1, 1 + versionLength).toString();  // other version is string
-            decode.push(version);
-
-            tmp = tmp.slice(1 + versionLength);
-            versionDataLength = versionDataLength - (1 + versionLength);
+        const fields = [
+            { name: "transportVersion", type: numberValue },
+            { name: "seFwVersion", type: stringValue },
+            { name: "mcuFwVersion", type: stringValue },
+            { name: "bootloaderVersion", type: stringValue },
+            { name: "model", type: numberValue },
+        ];
+        const result = {};
+        for (let i = 0; i < Math.min(fields.length, fieldCount); i++) {
+            const field = fields[i];
+            result[field.name] = field.type();
         }
 
-        if (decode.length + 1 !== versionCount) throw new Error('Parsing Invalid Version');
-
-        return wrapResult({
-            transportVersion: transportVersion,
-            seFwVersion: decode[0],
-            mcuFwVersion: decode[1],
-            bootloaderVersion: decode[2]
-        });
+        return wrapResult(result);
     }
 
     /**
@@ -908,6 +911,7 @@ try {
  * @property {string} seFwVersion security chip firmware version
  * @property {string} mcuFwVersion firmware version
  * @property {string} bootloaderVersion bootloader version
+ * @property {number} model SecuX wallet model
  */
 
 /**

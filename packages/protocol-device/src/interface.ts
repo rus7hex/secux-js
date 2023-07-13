@@ -26,10 +26,11 @@ const ow_accountName = ow.string.matches(/^[a-zA-Z0-9._-]+(\s+[a-zA-Z0-9._-]+)*$
 export const ow_chainId = ow.any(ow.number.not.negative, owTool.numberString, owTool.prefixedhexString);
 
 export type VersionInfo = {
-    transportVersion: number
+    transportVersion: number,
     seFwVersion: string,
     mcuFwVersion: string,
-    bootloaderVersion: string
+    bootloaderVersion: string,
+    model: number,
 }
 
 // bitwise configuration [6][5][4][3][2][1][0]
