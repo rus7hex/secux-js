@@ -20,6 +20,8 @@ import { RequestArguments } from "@json-rpc-tools/types";
 import { IJsonRpcConnection, JsonRpcPayload } from "@json-rpc-tools/utils";
 import { EthereumProvider } from "eip1193-provider";
 import { BigNumber } from "bignumber.js";
+const secp256k1 = require('secp256k1/elliptic');
+import { keccak256 } from "js-sha3";
 import { ITransport } from "@secux/transport";
 import { DeviceType } from "@secux/transport/lib/interface";
 import { SecuxWebBLE } from "@secux/transport-webble";
@@ -131,6 +133,23 @@ export class EIP1193Provider extends EthereumProvider {
                 // Metamask does not apply EIP-155
                 const signature = SecuxETH.resolveSignatureEIP155(response);
                 return `0x${signature}`;
+            }
+
+            case "personal_ecRecover": {
+                let message = request.params?.[0], signature = request.params?.[1];
+                if (!message) "missing value for required argument 0";
+                if (!signature) "missing value for required argument 1";
+
+                if (message.startsWith("0x")) {
+                    message = Buffer.from(message.replace(/^0x/, ''), "hex").toString("utf8");
+                }
+                const buf = Buffer.from(`\x19Ethereum Signed Message:\n${message.length}${message}`);
+                const hash = Buffer.from(keccak256.update(buf).digest());
+
+                const sig = Buffer.from(signature.replace(/^0x/, ''), "hex");
+                const recid = sig.readUint8(64) - 27;
+                const publickey = Buffer.from(secp256k1.ecdsaRecover(sig.slice(0, 64), recid, hash));
+                return SecuxETH.addressConvert(publickey);
             }
 
             case "eth_signTypedData":

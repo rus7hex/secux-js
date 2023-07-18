@@ -277,4 +277,24 @@ describe("EIP-1193 provider", () => {
 
         assert.equal(signature, "0xa611ea8753a78f7390e5be0b1def230d1f9cb93f9a97b146f97e78df7ac44a4d14598c5b4e45bae6d9d4dc28ced3a4c0e7c8567e64714d49bfd0492329181ae61b");
     }).timeout(30000);
+
+    it("personal_ecRecover", async () => {
+        const message = "Wrapped ETH poligo";
+        const signature = "0x86bc369af81abb865d1cad6c08fe779de6c0bab94fc6a91f17829f9c61d6f0e961037889601f05432543836c56decdda99484e460c4ad1d49868ec8dada87a8d1c";
+
+        let address;
+        try {
+            address = await provider.request({
+                method: "personal_ecRecover",
+                params: [message, signature]
+            });
+        } catch (error) {
+            address = await provider_test.request({
+                method: "personal_ecRecover",
+                params: [message, signature]
+            });
+        }
+
+        assert.equal(address, "0xDB07d2017c0197B83eB2Db7a2D6E1F309A8CD0Fc");
+    });
 });
