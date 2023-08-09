@@ -254,11 +254,11 @@ export class EIP1193Provider extends EthereumProvider {
         // estimate EIP-1559 priority fee if not provided
         if (this.#useEIP1559 && !params.priorityFee) {
             const priority = (await getPriorityFee(this, [50]))[0];
-            if (BigNumber(params.priorityFee).gt(0)) {
+            if (BigNumber(priority).gt(0)) {
                 params.priorityFee = priority;
             }
             else {
-                params.priorityFee = "1";
+                params.priorityFee = "0x1";
             }
 
             logger?.debug(`estimate priority fee: ${BigNumber(priority).div(1e9).toFixed(2)} Gwei`);
