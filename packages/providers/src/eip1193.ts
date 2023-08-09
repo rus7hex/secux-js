@@ -337,8 +337,14 @@ export class EIP1193Provider extends EthereumProvider {
     }
 
     async #is_EIP1559_Supported(): Promise<boolean> {
+        const forceEIP155 = [
+            "0x38", // BNB Smart Chain Mainnet
+            "0x61", // BNB Smart Chain Testnet
+        ];
+        if (forceEIP155.includes(this.#chainId)) return false;
+
         try {
-            await this.request({ method: "eth_feeHistory", params: ["0x1", "latest", [0]] });
+            await getPriorityFee(this, [0]);
         }
         catch (error) {
             return false;
