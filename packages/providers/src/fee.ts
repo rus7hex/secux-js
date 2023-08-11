@@ -38,8 +38,9 @@ export async function getL1Fee(provider: EthereumProvider, txObject: any) {
         params: [
             {
                 to: OPTIMISM_GAS_PRICE_ORACLE_ADDRESS,
-                data: abiData
-            }
+                data: abiData,
+            },
+            "latest"
         ]
     });
 
