@@ -112,16 +112,6 @@ class ETHTransactionBuilder {
             if (gasPrice.lt(1)) logger?.warn(`Minimal gas price is 1 wei, but got ${gasPrice.toString()} wei.`);
         }
 
-        if (tx.maxPriorityFeePerGas) {
-            const priorityFee = getValue(tx.maxPriorityFeePerGas);
-            if (priorityFee.lt(1)) logger?.warn(`[maxPriorityFeePerGas] Minimal priority fee is 1 wei.`);
-        }
-
-        if (tx.maxFeePerGas) {
-            const maxFee = getValue(tx.maxFeePerGas);
-            if (maxFee.lt(1)) logger?.warn(`[maxFeePerGas] Minimal fee is 1 wei, but got ${maxFee.toString()} wei.`);
-        }
-
         // According to Ethereum Yellow Paper(https://ethereum.github.io/yellowpaper/paper.pdf)
         // gasLimit = G_transaction + G_txdatanonzero × dataByteLength
         // where:
@@ -137,8 +127,14 @@ class ETHTransactionBuilder {
                 estimatedGas += tx.data.length * 68;
             }
         }
-        const gasLimit = getValue(tx.gasLimit);
-        if (gasLimit.lt(estimatedGas)) logger?.warn(`Minimal gas is ${estimatedGas}, but got ${gasLimit.toString()}.`);
+
+        // deal with compatibale fields
+        const gasLimit = tx.gasLimit || tx.gas;
+        this.#tx.gasLimit = gasLimit;
+        if (gasLimit) {
+            const _gasLimit = getValue(gasLimit);
+            if (_gasLimit.lt(estimatedGas)) logger?.warn(`Minimal gas is ${estimatedGas}, but got ${_gasLimit.toString()}.`);
+        }
     }
 
     /**
@@ -223,6 +219,26 @@ class ETHTransactionBuilder {
 }
 
 class EIP1559Builder extends ETHTransactionBuilder {
+    constructor(tx: any) {
+        super(tx);
+
+        // deal with compatibale fields
+        const priorityFee = tx.maxPriorityFeePerGas || tx.priorityFee;
+        this.tx.maxPriorityFeePerGas = priorityFee;
+        if (priorityFee) {
+            const _priorityFee = getValue(priorityFee);
+            if (_priorityFee.lt(1)) logger?.warn(`[maxPriorityFeePerGas] Minimal priority fee is 1 wei.`);
+        }
+
+        // deal with compatibale fields
+        const maxFee = tx.maxFeePerGas || tx.gasPrice;
+        this.tx.maxFeePerGas = maxFee;
+        if (maxFee) {
+            const _maxFee = getValue(maxFee);
+            if (_maxFee.lt(1)) logger?.warn(`[maxFeePerGas] Minimal fee is 1 wei, but got ${_maxFee.toString()} wei.`);
+        }
+    }
+
     serialize(toHash: boolean = false): Buffer {
         const transaction = this.prepare();
 
@@ -273,25 +289,13 @@ class EIP1559Builder extends ETHTransactionBuilder {
 
 function handleRLPValue(input: rlp.Input) {
     if (typeof input === 'string') {
-        if (input.startsWith('0x') && isHex(input)) {
-            if (input == '0x0' || input == '0x00') return 0;
+        const value = BigNumber(input);
+        if (value.isZero()) return 0;
 
-            return input;
-        }
-        else {
-            throw Error('Invalid handleRLPValue string');
-        }
+        return `0x${value.toString(16)}`;
     }
 
     return input;
-}
-
-function isHex(str: string) {
-    let newStr = str.startsWith('0x') ? str.slice(2) : str;
-    const regexp = /^[0-9a-fA-F]+$/;
-    newStr = newStr.length % 2 === 0 ? newStr : `0${newStr}`;
-
-    return regexp.test(newStr);
 }
 
 function trimZeroForRLP(data: Buffer) {
