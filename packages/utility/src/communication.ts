@@ -18,7 +18,7 @@ limitations under the License.
 
 
 import ow from "ow";
-import { Logger } from "./utility";
+import { Logger, owTool } from "./utility";
 const logger = Logger?.child({ id: "protocol" });
 
 
@@ -119,10 +119,13 @@ export class TransportStatusError extends Error {
 
 export type base64String = string;
 export type communicationData = base64String | Buffer;
+// backward compatible
+/**
+ * @deprecated
+ */
 export const base64_regexp = /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/;
-export const ow_base64String = ow.string.matches(base64_regexp);
 export const ow_communicationData = ow.any(
-    ow_base64String,
+    owTool.base64String,
     ow.buffer
 );
 
