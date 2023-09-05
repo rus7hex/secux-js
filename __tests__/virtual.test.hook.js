@@ -6,11 +6,9 @@ const mnemonic = "neither black arm fun match nominee north lock cave judge wind
 // const mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 const signer = new SecuxVirtualTransport(mnemonic);
-document.getElementById("connect").addEventListener("click",
-    () => {
-        mocha.run();
-    }
-);
+document.getElementById("connect").onclick = () => {
+    mocha.run();
+}
 
 
 export function RunTest(testname, test) {
