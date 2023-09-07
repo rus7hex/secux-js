@@ -1,6 +1,6 @@
 {
   "name": "@secux/protocol-device",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "SecuX Hardware Wallet device protocol API",
   "keywords": [
     "secux",
@@ -29,6 +29,7 @@
     "test:webusb": "npx webpack serve --progress --config ./webpack.config.js --output-path ./__tests__",
     "test:webble": "npx webpack serve --progress --config ./webpack.ble.config.js --output-path ./__tests__",
     "test:webhid": "npx webpack serve --progress --config ./webpack.hid.config.js --output-path ./__tests__",
+    "test:virtual": "npx webpack serve --progress --config ./webpack.virtual.config.js --output-path ./__tests__",
     "tsc": "tsc",
     "watch": "tsc --watch"
   },

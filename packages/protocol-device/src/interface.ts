@@ -30,7 +30,18 @@ export type VersionInfo = {
     seFwVersion: string,
     mcuFwVersion: string,
     bootloaderVersion: string,
-    model: number,
+    model?: string,
+    customerId?: string,
+    deviceId?: string,
+}
+
+export enum ModelID {
+    W10 = 0x00570A00,
+    W20 = 0x00571400,
+    V20 = 0x00561400,
+    T20 = 0x00541400,
+    T20X = 0x00541401,
+    C20 = 0x00431400,
 }
 
 // bitwise configuration [6][5][4][3][2][1][0]

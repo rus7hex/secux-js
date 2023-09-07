@@ -27,7 +27,7 @@ import {
 import {
     AddressOption, VersionInfo, WalletInfo, ow_AddressOption, ow_FileMode, FileMode, FileInfo,
     ow_FileInfo, ContentKey, FileDestination, FileType, FileAttachment, ow_FileAttachment, ow_filename,
-    AttachmentExt, WalletStatus
+    AttachmentExt, WalletStatus, ModelID
 } from "./interface";
 import { BigNumber } from 'bignumber.js';
 import ow from "ow";
@@ -72,6 +72,10 @@ class SecuxDevice {
             tmp = tmp.slice(length + 1);
             return str;
         };
+        const hexValue = () => {
+            const num = numberValue();
+            return `0x${num.toString(16).padStart(8, '0')}`;
+        };
 
         const fields = [
             { name: "transportVersion", type: numberValue },
@@ -79,12 +83,17 @@ class SecuxDevice {
             { name: "mcuFwVersion", type: stringValue },
             { name: "bootloaderVersion", type: stringValue },
             { name: "model", type: numberValue },
+            { name: "customerId", type: hexValue },
+            { name: "deviceId", type: hexValue },
         ];
-        const result = {};
+        const result: any = {};
         for (let i = 0; i < Math.min(fields.length, fieldCount); i++) {
             const field = fields[i];
             result[field.name] = field.type();
         }
+
+        // convert model id to string
+        if (result.model) result.model = ModelID[result.model];
 
         return wrapResult(result);
     }
@@ -692,11 +701,41 @@ try {
             }
         },
 
+        getModel: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                const { model } = await this.getVersion();
+                return model;
+            }
+        },
+
+        getDeviceId: {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            value: async function (...args: any[]) {
+                let { deviceId } = await this.getVersion();
+                if (!deviceId && this.DeviceType === DeviceType.nifty) {
+                    const { PartNumber } = await this.getWalletInfo();
+                    deviceId = BigNumber(PartNumber).toNumber();
+                }
+
+                return deviceId;
+            }
+        },
+
         getCustomerId: {
             enumerable: true,
             configurable: false,
             writable: false,
             value: async function (...args: any[]) {
+                const { customerId } = await this.getVersion();
+                if (customerId) return customerId;
+
+
+                // backward compatible flow
                 if (this.DeviceType === DeviceType.nifty) {
                     //@ts-ignore
                     const buf = SecuxDeviceNifty.prepareGetWalletInfo(...args);
@@ -911,7 +950,9 @@ try {
  * @property {string} seFwVersion security chip firmware version
  * @property {string} mcuFwVersion firmware version
  * @property {string} bootloaderVersion bootloader version
- * @property {number} model SecuX wallet model
+ * @property {string} [model] SecuX wallet model
+ * @property {string} [customerId] SecuX wallet model
+ * @property {string} [deviceId] SecuX wallet model
  */
 
 /**

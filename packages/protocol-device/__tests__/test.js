@@ -115,6 +115,26 @@ export function test(GetDevice) {
                 assert.equal(walletStatus, WalletStatus.NORMAL);
             });
         });
+
+        describe("device information", () => {
+            it("model", async () => {
+                const model = await GetDevice().getModel();
+                console.log("model:", model);
+                assert.exists(model);
+            });
+
+            it("device id", async () => {
+                const deviceId = await GetDevice().getDeviceId();
+                console.log("deviceId:", deviceId);
+                assert.exists(deviceId);
+            });
+
+            it("customer id", async () => {
+                const id = await GetDevice().getCustomerId();
+                console.log("customerId:", id);
+                assert.exists(id);
+            });
+        });
     });
 
     describe("SecuxDeviceNifty", () => {
@@ -470,12 +490,15 @@ export function test(GetDevice) {
         describe("SecuxUpdate.UpdateMCU()", () => {
             let firmware;
             it("can get mcu firmware file from server", async () => {
-                const fetchURL = "https://firmware.secuxtech.com/firmware/downloadMcu";
+                const fetchURL = "https://firmware-test.secuxtech.com/firmware/downloadMcuFile";
                 const rsp = await fetch(fetchURL, {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    method: 'GET'
+                    method: 'POST',
+                    body: JSON.stringify({
+                        fileName: GetDevice().DeviceType == "nifty" ? "t20_fw_app" : "secux_2_26",
+                    }),
                 });
 
                 const data = await rsp.arrayBuffer();
@@ -490,8 +513,13 @@ export function test(GetDevice) {
                     await SecuxUpdate.UpdateMCU(
                         firmware,
                         GetDevice() instanceof SecuxWebUSB,
-                        (status) => console.log(status)
+                        (status) => {
+                            document.getElementById("status").textContent = `update progress: ${status}`;
+                            console.log(status);
+                        }
                     );
+
+                    document.getElementById("status").textContent = `update progress: 100`;
                 };
             });
         });
@@ -550,9 +578,12 @@ export function test(GetDevice) {
                 await SecuxUpdate.UpdateSE(
                     GetDevice(),
                     firmware,
-                    (status) => console.log(status)
+                    (status) => {
+                        document.getElementById("status").textContent = `update progress: ${status}`
+                        console.log(status);
+                    }
                 );
-            }).timeout(90000);
+            }).timeout(600000);
         });
     });
 };
