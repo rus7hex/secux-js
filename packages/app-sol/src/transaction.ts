@@ -209,7 +209,7 @@ export class Transaction {
                 publickey: accountKeys[idx],
                 isSigner: idx < this.#numRequiredSignatures,
                 isWritable:
-                    idx < this.#numReadonlySignedAccounts - this.#numReadonlySignedAccounts ||
+                    idx < this.#numRequiredSignatures - this.#numReadonlySignedAccounts ||
                     (idx >= this.#numRequiredSignatures && idx < accountKeys.length - this.#numReadonlyUnsignedAccounts)
             }));
 

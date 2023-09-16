@@ -341,16 +341,16 @@ function bs58Encode(hash: Buffer, prefix?: number) {
 }
 
 function bs58Decode(address: string) {
-    var decodeCheck = Base58.decode(address);
+    const decodeCheck = Base58.decode(address);
     if (decodeCheck.length <= 4) {
         logger?.warn(`base58 decode error, address: ${address}`);
 
         throw Error("base58 decode error");
     }
 
-    var decodeData = decodeCheck.slice(0, decodeCheck.length - 4);
-    var hash0 = Sha256(decodeData);
-    var hash1 = Sha256(hash0);
+    const decodeData = decodeCheck.slice(0, decodeCheck.length - 4);
+    const hash0 = Sha256(decodeData);
+    const hash1 = Sha256(hash0);
 
     if (hash1[0] === decodeCheck[decodeData.length] &&
         hash1[1] === decodeCheck[decodeData.length + 1] &&

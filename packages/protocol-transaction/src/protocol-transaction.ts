@@ -644,7 +644,7 @@ function addLengthPrefixToBuffer(data: Buffer) {
     let lenBuf = Buffer.alloc(0);
     const oldHex = data.length.toString(16);
     const hexString = oldHex.length % 2 == 1 ? `0${oldHex}` : oldHex;
-    const hex = hexString.match(/[\da-fA-F]{2}/gi);
+    const hex = hexString.match(/[\da-f]{2}/gi);
     if (hex) lenBuf = Buffer.from(hexString, "hex");
     else throw Error('Invalid Input');
 

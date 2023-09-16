@@ -82,7 +82,7 @@ class SecuxWebBLE extends ITransport {
      */
     async Connect() {
         const server = await this.#device.gatt!.connect();
-        if (!server) { throw "Cannot connect to device: BluetoothDevice.gatt is undefined"; }
+        if (!server) { throw Error("Cannot connect to device: BluetoothDevice.gatt is undefined"); }
 
         const services = await server.getPrimaryServices();
         const { service, uuid } = this.#identify(services);
@@ -181,7 +181,7 @@ class SecuxWebBLE extends ITransport {
             // re-connect
             if (!this.#reader || !this.#writer) {
                 const server = await this.#device.gatt!.connect();
-                if (!server) { throw "Cannot connect to device: BluetoothDevice.gatt is undefined"; }
+                if (!server) { throw Error("Cannot connect to device: BluetoothDevice.gatt is undefined"); }
 
                 const info = Devices[DeviceType.nifty];
                 const service = await server.getPrimaryService(info.PRIMARY);

@@ -82,7 +82,7 @@ class SecuxReactNativeBLE extends ITransport {
             this.#OnConnected();
         }
         else {
-            throw "Device unavailable";
+            throw Error("Device unavailable");
         }
 
         this.#disconnectEvent = this.#device!.onDisconnected((err: BleError | null, device: Device) => {
@@ -192,9 +192,9 @@ class SecuxReactNativeBLE extends ITransport {
                         if (!device || !device.name) return;
                         if (error) throw error;
 
-                        let item;
-                        if ((item = discover.get(device.id))) {
-                            if (vanished) clearTimeout(item.timer);
+                        const finded = discover.get(device.id);
+                        if (finded) {
+                            if (vanished) clearTimeout(finded.timer);
                         }
                         else {
                             discovered(device);
@@ -236,9 +236,9 @@ class SecuxReactNativeBLE extends ITransport {
         const { service, uuid } = findDeviceType(await this.#device!.services());
         const characteristics = await service.characteristics();
         this.#reader = characteristics.find(c => c.uuid === uuid.TX);
-        if (!this.#reader) throw "Cannot find NUS_TX_CHARACTERISTIC_UUID";
+        if (!this.#reader) throw Error("Cannot find NUS_TX_CHARACTERISTIC_UUID");
         this.#writer = characteristics.find(c => c.uuid === uuid.RX);
-        if (!this.#writer) throw "Cannot find NUS_RX_CHARACTERISTIC_UUID";
+        if (!this.#writer) throw Error("Cannot find NUS_RX_CHARACTERISTIC_UUID");
 
         this.#reader.monitor((error, c) => {
             if (error) {

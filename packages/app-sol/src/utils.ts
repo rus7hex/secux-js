@@ -108,8 +108,8 @@ export function isOnCurve(publickey: Uint8Array): boolean {
 }
 
 function neq25519(a: any, b: any) {
-    var c = new Uint8Array(32),
-        d = new Uint8Array(32);
+    const c = new Uint8Array(32);
+    const d = new Uint8Array(32);
     naclLowLevel.pack25519(c, a);
     naclLowLevel.pack25519(d, b);
     return naclLowLevel.crypto_verify_32(c, 0, d, 0);
