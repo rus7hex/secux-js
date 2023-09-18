@@ -185,7 +185,10 @@ abstract class ITransport {
         this.#packetSize = value;
     }
 
+    get CustomerId() { return ''; }
     get DeviceType() { return ''; }
+    get DeviceId() { return ''; }
+    get Model() { return ''; }
     get MCU() { return ''; }
     get SE() { return ''; }
 

@@ -1,6 +1,6 @@
 {
   "name": "@secux/transport-webble",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "Secux Hardware Wallet webBLE API for communication layer",
   "keywords": [
     "secux",
@@ -29,7 +29,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@secux/protocol-device": "^3.0.3",
+    "@secux/protocol-device": "^3.6.0",
     "@secux/transport": "^3.3.6"
   },
   "devDependencies": {

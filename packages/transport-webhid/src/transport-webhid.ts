@@ -41,6 +41,9 @@ class SecuxWebHID extends ITransport {
     #device: HIDDevice;
     #mcuVersion: string = '';
     #seVersion: string = '';
+    #model: string = '';
+    #deviceId: string = '';
+    #customerId: string = '';
     #OnConnected: Function;
     #OnDisconnected: Function;
 
@@ -84,15 +87,11 @@ class SecuxWebHID extends ITransport {
             this.#OnConnected();
             this.#DisconnectWatcher();
 
-            const data = SecuxDevice.prepareGetVersion();
-            const rsp = await this.Exchange(getBuffer(data));
-            const { mcuFwVersion, seFwVersion } = SecuxDevice.resolveVersion(rsp);
-            this.#mcuVersion = mcuFwVersion;
-            this.#seVersion = seFwVersion;
-
             ITransport.deviceType = DeviceType.nifty;
-            ITransport.mcuVersion = mcuFwVersion;
-            ITransport.seVersion = seFwVersion;
+
+            await this.#setDeviceInfo();
+            ITransport.mcuVersion = this.#mcuVersion;
+            ITransport.seVersion = this.#seVersion;
         } catch (e) {
             throw e;
         }
@@ -131,6 +130,9 @@ class SecuxWebHID extends ITransport {
 
     get DeviceName() { return this.#device.productName; }
     get DeviceType() { return DeviceType.nifty; }
+    get Model() { return this.#model; }
+    get DeviceId() { return this.#deviceId; }
+    get CustomerId() { return this.#customerId; }
     get MCU() { return this.#mcuVersion; }
     get SE() { return this.#seVersion; }
 
@@ -154,5 +156,18 @@ class SecuxWebHID extends ITransport {
         };
 
         setTimeout(detect, interval);
+    }
+
+    async #setDeviceInfo() {
+        const data = SecuxDevice.prepareGetVersion();
+        const rsp = await this.Exchange(getBuffer(data));
+        const { mcuFwVersion, seFwVersion, model, deviceId, customerId } = SecuxDevice.resolveVersion(rsp);
+        this.#mcuVersion = mcuFwVersion;
+        this.#seVersion = seFwVersion;
+        this.#model = model || '';
+        this.#deviceId = deviceId || '';
+        this.#customerId = customerId || '';
+        //@ts-ignore
+        if (!this.#customerId) this.#customerId = await this.getCustomerId();
     }
 }

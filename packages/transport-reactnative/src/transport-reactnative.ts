@@ -43,6 +43,9 @@ class SecuxReactNativeBLE extends ITransport {
     #device?: Device;
     #mcuVersion: string = '';
     #seVersion: string = '';
+    #model: string = '';
+    #deviceId: string = '';
+    #customerId: string = '';
     #type?: DeviceType;
     #reader?: Characteristic;
     #writer?: Characteristic;
@@ -106,7 +109,7 @@ class SecuxReactNativeBLE extends ITransport {
 
         if (this.#type === DeviceType.nifty) {
             await this.#checkPairing();
-            await this.#setFirmwareVersion();
+            await this.#setDeviceInfo();
         }
     }
 
@@ -140,7 +143,7 @@ class SecuxReactNativeBLE extends ITransport {
             throw new TransportStatusError(status);
         }
 
-        await this.#setFirmwareVersion();
+        await this.#setDeviceInfo();
 
         return true;
     }
@@ -156,6 +159,9 @@ class SecuxReactNativeBLE extends ITransport {
 
     get DeviceName() { return this.#device!.name; }
     get DeviceType() { return this.#type ?? ''; }
+    get Model() { return this.#model; }
+    get DeviceId() { return this.#deviceId; }
+    get CustomerId() { return this.#customerId; }
     get MCU() { return this.#mcuVersion; }
     get SE() { return this.#seVersion; }
 
@@ -256,18 +262,25 @@ class SecuxReactNativeBLE extends ITransport {
         return uuid;
     }
 
-    async #setFirmwareVersion() {
+    async #setDeviceInfo() {
         const data = SecuxDevice.prepareGetVersion();
         const rsp = await this.Exchange(getBuffer(data));
-        const { mcuFwVersion, seFwVersion } = SecuxDevice.resolveVersion(rsp);
+        const { mcuFwVersion, seFwVersion, model, deviceId, customerId } = SecuxDevice.resolveVersion(rsp);
         this.#mcuVersion = mcuFwVersion;
         this.#seVersion = seFwVersion;
+        if (model) this.#model = model;
+        if (deviceId) this.#deviceId = deviceId;
+        if (customerId) {
+            this.#customerId = customerId;
+        }
+        else {
+            // backward compatible
+            //@ts-ignore
+            this.#customerId = await this.getCustomerId();
+        }
 
         ITransport.mcuVersion = mcuFwVersion;
         ITransport.seVersion = seFwVersion;
-
-        console.log(`mcu version: ${this.#mcuVersion}`);
-        console.log(`se version: ${this.#seVersion}`);
     }
 
     async #checkPairing() {

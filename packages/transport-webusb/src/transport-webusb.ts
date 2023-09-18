@@ -44,6 +44,9 @@ class SecuxWebUSB extends ITransport {
     #connected: boolean = false;
     #mcuVersion: string = '';
     #seVersion: string = '';
+    #model: string = '';
+    #deviceId: string = '';
+    #customerId: string = '';
     #OnConnected: Function;
     #OnDisconnected: Function;
 
@@ -86,19 +89,13 @@ class SecuxWebUSB extends ITransport {
 
             this.#connected = true;
             this.#DisconnectWatcher();
+            ITransport.deviceType = DeviceType.crypto;
 
             if (this.#device.productId !== SECUX_USB_DEVICE.BOOTLOADER.productId) {
                 // Observer mode cannot work properly in web worker.
                 this.#Listener();
 
-                const data = SecuxDevice.prepareGetVersion();
-                const rsp = await this.Exchange(getBuffer(data));
-                const { mcuFwVersion, seFwVersion } = SecuxDevice.resolveVersion(rsp);
-                this.#mcuVersion = mcuFwVersion;
-                this.#seVersion = seFwVersion;
-
-                ITransport.mcuVersion = mcuFwVersion;
-                ITransport.seVersion = seFwVersion;
+                await this.#SetDeviceInfo();
             }
             else {
                 Object.defineProperty(this, "Read", {
@@ -107,7 +104,8 @@ class SecuxWebUSB extends ITransport {
                 });
             }
 
-            ITransport.deviceType = DeviceType.crypto;
+            ITransport.mcuVersion = this.#mcuVersion;
+            ITransport.seVersion = this.#seVersion;
         } catch (e) {
             throw e;
         }
@@ -169,8 +167,11 @@ class SecuxWebUSB extends ITransport {
         );
     }
 
+    get CustomerId() { return this.#customerId; }
     get DeviceName() { return this.#device.productName; }
     get DeviceType() { return DeviceType.crypto; }
+    get DeviceId() { return this.#deviceId; }
+    get Model() { return this.#model; }
     get MCU() { return this.#mcuVersion; }
     get SE() { return this.#seVersion; }
 
@@ -184,6 +185,24 @@ class SecuxWebUSB extends ITransport {
         return Buffer.alloc(0);
     }
 
+    async #SetDeviceInfo() {
+        const data = SecuxDevice.prepareGetVersion();
+        const rsp = await this.Exchange(getBuffer(data));
+        const info = SecuxDevice.resolveVersion(rsp);
+        this.#mcuVersion = info.mcuFwVersion;
+        this.#seVersion = info.seFwVersion;
+        if (info.model) this.#model = info.model;
+        if (info.deviceId) this.#deviceId = info.deviceId;
+        if (info.customerId) {
+            this.#customerId = info.customerId;
+        }
+        else {
+            // backward compatible
+            //@ts-ignore
+            this.#customerId = await this.getCustomerId();
+        }
+    }
+
     #Listener() {
         const interval = 1;
 
@@ -191,8 +210,14 @@ class SecuxWebUSB extends ITransport {
             if (!this) return;
             if (!this.#connected) return;
 
-            const data = await this.#Read();
-            if (data.length > 0) this.ReceiveData(data);
+            try {
+                const data = await this.#Read();
+                if (data.length > 0) this.ReceiveData(data);
+            }
+            catch (error) {
+                // do nothing
+                console.warn(error);
+            }
 
             setTimeout(receive, interval);
         };

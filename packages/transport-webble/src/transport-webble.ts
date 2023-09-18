@@ -37,6 +37,9 @@ class SecuxWebBLE extends ITransport {
     #device: BluetoothDevice;
     #mcuVersion: string = '';
     #seVersion: string = '';
+    #model: string = '';
+    #deviceId: string = '';
+    #customerId: string = '';
     #reader?: BluetoothRemoteGATTCharacteristic;
     #writer?: BluetoothRemoteGATTCharacteristic;
     #type?: DeviceType;
@@ -91,16 +94,16 @@ class SecuxWebBLE extends ITransport {
         this.#type = uuid.TYPE;
         this.version = uuid.PROTOCOL;
         this.packetSize = uuid.PACKET;
+        ITransport.deviceType = this.#type;
 
         await this.#reader.startNotifications();
         this.#reader.addEventListener(ValueChangedId, this.#handleNotifications);
 
         if (this.#type === DeviceType.nifty) {
             await this.#checkPairing();
-            await this.#setFirwmareVersion();
+            await this.#setDeviceInfo();
         }
 
-        ITransport.deviceType = this.#type;
         this.#connected = true;
         this.#OnConnected();
     }
@@ -139,13 +142,16 @@ class SecuxWebBLE extends ITransport {
             throw new TransportStatusError(status);
         }
 
-        await this.#setFirwmareVersion();
+        await this.#setDeviceInfo();
 
         return true;
     }
 
+    get CustomerId() { return this.#customerId; }
     get DeviceName() { return this.#device.name; }
     get DeviceType() { return this.#type ?? ''; }
+    get DeviceId() { return this.#deviceId; }
+    get Model() { return this.#model; }
     get MCU() { return this.#mcuVersion; }
     get SE() { return this.#seVersion; }
 
@@ -216,12 +222,22 @@ class SecuxWebBLE extends ITransport {
         throw Error("Cannot find related GATTService");
     }
 
-    async #setFirwmareVersion() {
+    async #setDeviceInfo() {
         const data = SecuxDevice.prepareGetVersion();
         const rsp = await this.Exchange(getBuffer(data));
-        const { mcuFwVersion, seFwVersion } = SecuxDevice.resolveVersion(rsp);
+        const { mcuFwVersion, seFwVersion, model, deviceId, customerId } = SecuxDevice.resolveVersion(rsp);
         this.#mcuVersion = mcuFwVersion;
         this.#seVersion = seFwVersion;
+        if (model) this.#model = model;
+        if (deviceId) this.#deviceId = deviceId;
+        if (customerId) {
+            this.#customerId = customerId;
+        }
+        else {
+            // backward compatible
+            //@ts-ignore
+            this.#customerId = await this.getCustomerId();
+        }
 
         ITransport.mcuVersion = mcuFwVersion;
         ITransport.seVersion = seFwVersion;
