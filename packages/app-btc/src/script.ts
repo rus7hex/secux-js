@@ -49,7 +49,7 @@ export function compile(chunks: any[]) {
             if (opcode !== undefined) {
                 buffer.writeUInt8(opcode, offset);
                 offset += 1;
-                return;
+                continue;
             }
             offset += pushdata.encode(buffer, chunk.length, offset);
             chunk.copy(buffer, offset);
@@ -163,14 +163,15 @@ function asMinimalOP(buffer: Buffer) {
 
 class pushdata {
     static encodingLength(i: number) {
-        return i < OPCODES.OP_PUSHDATA1 ? 1
-            : i <= 0xff ? 2
-                : i <= 0xffff ? 3
-                    : 5;
+        if (i < OPCODES.OP_PUSHDATA1) return 1;
+        if (i <= 0xff) return 2;
+        if (i <= 0xffff) return 3;
+
+        return 5;
     }
 
     static encode(buffer: Buffer, number: number, offset: number) {
-        var size = this.encodingLength(number);
+        const size = this.encodingLength(number);
 
         // ~6 bit
         if (size === 1) {
@@ -198,8 +199,8 @@ class pushdata {
     }
 
     static decode(buffer: Buffer, offset: number) {
-        var opcode = buffer.readUInt8(offset);
-        var number, size;
+        const opcode = buffer.readUInt8(offset);
+        let number, size;
 
         // ~6 bit
         if (opcode < OPCODES.OP_PUSHDATA1) {

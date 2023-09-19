@@ -169,7 +169,7 @@ export class SecuxBTC {
         ow(option as any, ow.any(ow.undefined, ow_SignOption));
         const coin = option?.coin ?? getCoinType(inputs[0].path);
         ow(outputs, ow_txOutput);
-        inputs.map(input => {
+        inputs.forEach(input => {
             const purpose = (input.script) ? getPurpose(input.script) : btcPurposes;
             //@ts-ignore
             ow(input.path, ow_strictPath(coinmap[coin].coinType, purpose));
@@ -317,7 +317,7 @@ export class SecuxBTC {
         const _xpub = decodeXPUB(xpub);
         if (_xpub.depth !== 3) throw Error(`ArgumentError: expect depth from xpub is 3, but got ${_xpub.depth}`);
         if (option?.script) {
-            if (option.script in [ScriptType.P2PKH, ScriptType.P2SH_P2PKH, ScriptType.P2SH_P2WPKH, ScriptType.P2WPKH]) {
+            if ([ScriptType.P2PKH, ScriptType.P2SH_P2PKH, ScriptType.P2SH_P2WPKH, ScriptType.P2WPKH].includes(option.script)) {
                 const purpose = getPurpose(option?.script);
                 if (_xpub.purpose !== purpose) {
                     throw Error(`ArgumentError: expect purpose from xpub is ${purpose}, but got ${_xpub.purpose}`);
@@ -325,8 +325,6 @@ export class SecuxBTC {
             }
             else {
                 if (_xpub.purpose !== 44) throw Error(`ArgumentError: expect purpose from xpub is 44, but got ${_xpub.purpose}`);
-
-                _xpub.purpose === getPurpose(option?.script);
             }
         }
 

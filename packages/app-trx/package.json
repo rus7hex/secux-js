@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@types/keccak": "^3.0.1",
+    "querystring": "^0.2.1",
     "tronweb": "^4.0.0"
   }
 }

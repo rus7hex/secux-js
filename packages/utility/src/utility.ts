@@ -219,7 +219,7 @@ export function checkFWVersion(type: string, restrict: string, current: string) 
 
 function numbersToRegExp(list: Array<number>): string {
     let a = "";
-    list.map(c => a = a + `${c.toString()}|`);
+    list.forEach(c => a = a + `${c.toString()}|`);
     a = `(${a.substring(0, a.length - 1)})`;
 
     return a;

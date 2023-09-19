@@ -85,13 +85,13 @@ export class EIP1193Provider extends EthereumProvider {
 
             case "eth_signTransaction": {
                 const params = request.params?.[0];
-                if (!params) throw "missing value for required argument 0";
+                if (!params) throw Error("missing value for required argument 0");
                 return await this.#signTransaction(params);
             }
 
             case "eth_sendTransaction": {
                 const params = request.params?.[0];
-                if (!params) throw "missing value for required argument 0";
+                if (!params) throw Error("missing value for required argument 0");
                 await this.prepareData(params);
                 const tx = await this.#signTransaction(params);
                 return await super.request({ method: "eth_sendRawTransaction", params: [tx] });
@@ -101,13 +101,13 @@ export class EIP1193Provider extends EthereumProvider {
                 const address = request.params?.[0];
                 let hash = request.params?.[1];
                 this.#checkAddress(address);
-                if (!hash) throw "missing value for required argument 1";
+                if (!hash) throw Error("missing value for required argument 1");
 
                 if (!Buffer.isBuffer(hash)) {
                     ow(hash, ow.string.matches(/^0x[0-9A-F-a-f]{64}/));
                     hash = Buffer.from(hash.slice(2), "hex");
                 }
-                if (hash.length !== 32) throw "Invalid parameters: must provide a 32 bytes hash.";
+                if (hash.length !== 32) throw Error("Invalid parameters: must provide a 32 bytes hash.");
 
                 const data = SecuxTransactionTool.signTransaction(this.#path, hash);
                 const response = await this.#transport!.Exchange(getBuffer(data));
@@ -124,9 +124,9 @@ export class EIP1193Provider extends EthereumProvider {
                     address = request.params?.[0];
                     message = request.params?.[1];
                     this.#checkAddress(address);
-                    if (!message) throw "missing value for required argument 1";
+                    if (!message) throw Error("missing value for required argument 1");
                 }
-                if (!message) throw "missing value for required argument 0";
+                if (!message) throw Error("missing value for required argument 0");
 
                 const data = SecuxETH.prepareSignMessage(this.#path, message);
                 const response = await this.#transport!.Exchange(getBuffer(data));
@@ -137,8 +137,8 @@ export class EIP1193Provider extends EthereumProvider {
 
             case "personal_ecRecover": {
                 let message = request.params?.[0], signature = request.params?.[1];
-                if (!message) "missing value for required argument 0";
-                if (!signature) "missing value for required argument 1";
+                if (!message) throw Error("missing value for required argument 0");
+                if (!signature) throw Error("missing value for required argument 1");
 
                 if (message.startsWith("0x")) {
                     message = Buffer.from(message.replace(/^0x/, ''), "hex").toString("utf8");
@@ -162,9 +162,9 @@ export class EIP1193Provider extends EthereumProvider {
                     address = request.params?.[1];
                     msgParams = request.params?.[0];
                     this.#checkAddress(address);
-                    if (!msgParams) throw "missing value for required argument 0";
+                    if (!msgParams) throw Error("missing value for required argument 0");
                 }
-                if (!msgParams) throw "missing value for required argument 1";
+                if (!msgParams) throw Error("missing value for required argument 1");
 
                 if (typeof msgParams !== "string") msgParams = JSON.stringify(msgParams);
                 const { signature } = await this.#transport!.sign(this.#path, msgParams);
@@ -311,9 +311,9 @@ export class EIP1193Provider extends EthereumProvider {
             data: ow.any(ow.undefined, owTool.prefixedhexString, ow.string.equals("0x")),
             nonce: ow.any(ow.undefined, ow.number.not.negative, owTool.prefixedhexString, owTool.numberString),
         }));
-        if (!this.#address) throw "wallet not available";
+        if (!this.#address) throw Error("wallet not available");
         if (params.from && params.from.toLowerCase() !== this.#address.toLowerCase()) {
-            throw `unknown wallet address ${params.from}, expect ${this.#address}`;
+            throw Error(`unknown wallet address ${params.from}, expect ${this.#address}`);
         }
 
         const tx = this.#useEIP1559 ?
@@ -357,11 +357,11 @@ export class EIP1193Provider extends EthereumProvider {
         try {
             ow(address, ow_address);
         } catch (error) {
-            throw "Invalid parameters: must provide an Ethereum address.";
+            throw Error("Invalid parameters: must provide an Ethereum address.");
         }
 
         if (address && address.toLowerCase() !== this.#address.toLowerCase()) {
-            throw `unknown wallet address ${address}`;
+            throw Error(`unknown wallet address ${address}`);
         }
     }
 }
