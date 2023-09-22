@@ -103,6 +103,23 @@ export function toExtenededPublicKey(path: string, parentFingerPrint: Buffer, ch
     return bs58_BTC.encode(buffer);
 }
 
+export function convertXpubMagic(xpub: string, magic: number) {
+    let result = '';
+    try {
+        const payload = bs58_BTC.decode(xpub);
+        payload.writeUInt32BE(magic, 0);
+        result = bs58_BTC.encode(payload);
+    }
+    catch (error) {
+        logger?.warn(`The xpub is not Bitcoin compatible, try use Groestlcoin version:\n${xpub}`);
+        const payload = bs58_GRS.decode(xpub);
+        payload.writeUInt32BE(magic, 0);
+        result = bs58_GRS.encode(payload);
+    }
+
+    return result;
+}
+
 export function decodeXPUB(xpub: string) {
     ow(xpub, owTool.xpubString);
 
