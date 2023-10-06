@@ -164,7 +164,7 @@ export function decodeXPUB(xpub: string) {
 export function deriveKey(publickey: Buffer, chaincode: Buffer, indexArray: Array<number>): { publickey: Buffer, chaincode: Buffer } {
     ow(publickey, ow_checkBufferLength(33));
     ow(chaincode, ow_checkBufferLength(32));
-    ow(indexArray, ow.array.ofType(ow.number.uint8));
+    ow(indexArray, ow.array.ofType(ow.number.uint32));
 
 
     let xpub = { publickey, chaincode };

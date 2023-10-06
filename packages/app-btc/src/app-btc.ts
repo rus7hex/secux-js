@@ -23,7 +23,8 @@ import { loadPlugin, ow_strictPath, Signature } from '@secux/utility';
 import { decodeXPUB, deriveKey } from "@secux/utility/lib/xpub";
 import ow from 'ow';
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
-import { communicationData, getBuffer, ow_communicationData, wrapResult } from "@secux/utility/lib/communication";
+import { communicationData, getBuffer, ow_communicationData, toCommunicationData, wrapResult } from "@secux/utility/lib/communication";
+import { splitPath } from "@secux/utility/lib/BIP32Path";
 import { EllipticCurve } from "@secux/protocol-transaction/lib/interface";
 import {
     CoinType, txInput, txOutput, ScriptType, txOutputAddress, txOutputScriptExtened, ow_txInput, ow_txOutput,
@@ -169,10 +170,22 @@ export class SecuxBTC {
         ow(option as any, ow.any(ow.undefined, ow_SignOption));
         const coin = option?.coin ?? getCoinType(inputs[0].path);
         ow(outputs, ow_txOutput);
+
+        const setPublickey = (data: any) => {
+            const xpub = option?.xpub;
+            if (!xpub) return;
+            if (data.publickey) return;
+
+            const bip32 = splitPath(data.path);
+            data.publickey = SecuxBTC.derivePublicKey(xpub, bip32.change!.value, bip32.addressIndex!.value);
+        };
+
         inputs.forEach(input => {
             const purpose = (input.script) ? getPurpose(input.script) : btcPurposes;
             //@ts-ignore
             ow(input.path, ow_strictPath(coinmap[coin].coinType, purpose));
+
+            setPublickey(input);
         });
 
         let _ = isOutuptScriptExtended(outputs.to);
@@ -180,11 +193,15 @@ export class SecuxBTC {
             const purpose = (_.script) ? getPurpose(_.script) : btcPurposes;
             //@ts-ignore
             ow(_.path, ow_strictPath(coinmap[coin].coinType, purpose));
+
+            setPublickey(outputs.to);
         }
         if (outputs.utxo) {
             const purpose = (outputs.utxo.script) ? getPurpose(outputs.utxo.script) : btcPurposes;
             //@ts-ignore
             ow(outputs.utxo.path, ow_strictPath(coinmap[coin].coinType, purpose));
+
+            setPublickey(outputs.utxo);
         }
 
         const psbt = new SecuxPsbt(coin, option?.isRBF);
@@ -276,20 +293,22 @@ export class SecuxBTC {
 
         const coin = option?.coin ?? getCoinType(inputs[0].path);
 
-        for (const txIn of inputs) {
-            if (txIn.publickey !== undefined) continue;
+        if (!option?.xpub) {
+            for (const txIn of inputs) {
+                if (txIn.publickey !== undefined) continue;
 
-            txIn.publickey = await getPK(txIn.path);
-        }
+                txIn.publickey = await getPK(txIn.path);
+            }
 
-        //@ts-ignore
-        if (outputs.to.path && outputs.to.publickey === undefined) {
             //@ts-ignore
-            outputs.to.publickey = await getPK(outputs.to.path);
-        }
+            if (outputs.to.path && outputs.to.publickey === undefined) {
+                //@ts-ignore
+                outputs.to.publickey = await getPK(outputs.to.path);
+            }
 
-        if (outputs.utxo?.path && outputs.utxo.publickey === undefined) {
-            outputs.utxo.publickey = await getPK(outputs.utxo.path);
+            if (outputs.utxo?.path && outputs.utxo.publickey === undefined) {
+                outputs.utxo.publickey = await getPK(outputs.utxo.path);
+            }
         }
 
         const { commands, rawTx } = SecuxBTC.prepareSign(inputs, outputs, { ...option, coin });
@@ -302,6 +321,24 @@ export class SecuxBTC {
     }
 
     /**
+     * Derive public key from xpub.
+     * @param {string} xpub extended publickey (base58 encoded), depth must be 3
+     * @param {number} change BIP44 change field
+     * @param {number} addressIndex BIP44 address_index field
+     * @returns {communicationData} publickey
+     */
+    static derivePublicKey(xpub: string | any, change: number, addressIndex: number): communicationData {
+        ow(change, ow.number.uint32);
+        ow(addressIndex, ow.number.uint32);
+
+        const _xpub = typeof xpub === "string" ? decodeXPUB(xpub) : xpub;
+        if (_xpub.depth !== 3) throw Error(`ArgumentError: expect depth from xpub is 3, but got ${_xpub.depth}`);
+
+        const { publickey } = deriveKey(_xpub.publickey, _xpub.chaincode, [change, addressIndex]);
+        return toCommunicationData(publickey);
+    }
+
+    /**
      * Derive xpub and generate BTC address.
      * @param {string} xpub extended publickey (base58 encoded), depth must be 3
      * @param {number} change BIP44 change field
@@ -310,12 +347,9 @@ export class SecuxBTC {
      * @returns {string} address
      */
     static deriveAddress(xpub: string, change: number, addressIndex: number, option?: AddressOption): string {
-        ow(change, ow.number.uint8);
-        ow(addressIndex, ow.number.uint8);
         ow(option as AddressOption, ow.any(ow.undefined, ow_AddressOption));
 
         const _xpub = decodeXPUB(xpub);
-        if (_xpub.depth !== 3) throw Error(`ArgumentError: expect depth from xpub is 3, but got ${_xpub.depth}`);
         if (option?.script) {
             if ([ScriptType.P2PKH, ScriptType.P2SH_P2PKH, ScriptType.P2SH_P2WPKH, ScriptType.P2WPKH].includes(option.script)) {
                 const purpose = getPurpose(option?.script);
@@ -328,7 +362,7 @@ export class SecuxBTC {
             }
         }
 
-        const { publickey } = deriveKey(_xpub.publickey, _xpub.chaincode, [change, addressIndex]);
+        const publickey = SecuxBTC.derivePublicKey(_xpub, change, addressIndex);
         const coin = option?.coin ?? CoinType.BITCOIN;
         const script = option?.script ?? getDefaultScript(`m/${_xpub.purpose}'`);
 
@@ -471,6 +505,7 @@ loadPlugin(SecuxBTC, "SecuxBTC");
  * @property {CoinType} [coin] check cointype for each input
  * @property {number} [feeRate] calculate optimal transaction fee and replace it
  * @property {boolean} [isRBF] make Replace-by-Fee transaction
+ * @property {string} [xpub] account's extended publickey
  */
 
 /**

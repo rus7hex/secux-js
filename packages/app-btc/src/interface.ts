@@ -184,7 +184,8 @@ export type AddressOption = {
 export type SignOption = {
     coin?: CoinType,
     feeRate?: number,
-    isRBF?: boolean
+    isRBF?: boolean,
+    xpub?: string,
 }
 
 export const ow_AddressOption = ow.object.exactShape({
@@ -192,8 +193,8 @@ export const ow_AddressOption = ow.object.exactShape({
     script: ow.optional.number.inRange(0, ScriptType.__LENGTH - 1),
 });
 
-export const ow_SignOption = ow.object.exactShape({
+export const ow_SignOption = ow.object.partialShape({
     coin: ow.optional.number.inRange(0, CoinType.__LENGTH - 1),
     feeRate: ow.optional.number.greaterThanOrEqual(1),
-    isRBF: ow.optional.boolean
+    isRBF: ow.optional.boolean,
 });
