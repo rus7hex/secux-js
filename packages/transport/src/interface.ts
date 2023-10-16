@@ -60,5 +60,6 @@ export const ProtocolV2 = Object.freeze({
 
 export enum DeviceType {
     crypto = "crypto",
-    nifty = "nifty"
+    nifty = "nifty",
+    shield = "shield",
 }

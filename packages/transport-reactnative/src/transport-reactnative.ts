@@ -279,6 +279,11 @@ class SecuxReactNativeBLE extends ITransport {
             this.#customerId = await this.getCustomerId();
         }
 
+        if (["C20"].includes(this.#model)) {
+            this.#type = DeviceType.shield;
+            ITransport.deviceType = DeviceType.shield;
+        }
+
         ITransport.mcuVersion = mcuFwVersion;
         ITransport.seVersion = seFwVersion;
     }
