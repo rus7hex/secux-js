@@ -58,7 +58,6 @@ export class EIP1193Provider extends EthereumProvider {
         await super.connect(connection);
 
         if (!this.#transport) return;
-        if (!this.#address) await connectDevice(this.#transport);
         await this.setAccount(this.#accountIndex);
     }
 
