@@ -30,7 +30,8 @@ export async function getPriorityFee(provider: EthereumProvider, percentiles = [
 }
 
 export async function getL1Fee(provider: EthereumProvider, txObject: any) {
-    const serialized = new ETHTransactionBuilder(txObject).serialize(false);
+    const serialized = typeof txObject === "string" ? txObject :
+        new ETHTransactionBuilder(txObject).serialize(false);
     const abiData = OPTIMISM_GAS__PRICE_CONTRACT.encodeFunctionData("getL1Fee", [serialized]);
 
     const result = await provider.request({
