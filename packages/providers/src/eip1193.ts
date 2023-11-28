@@ -230,7 +230,12 @@ export class EIP1193Provider extends EthereumProvider {
             params.gas = await this.request(
                 {
                     method: "eth_estimateGas",
-                    params: [{ from, to, value, data }]
+                    params: [{
+                        from: from || this.#address,
+                        to,
+                        value,
+                        data
+                    }]
                 }
             );
         }
