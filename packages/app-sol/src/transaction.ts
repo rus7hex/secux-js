@@ -29,6 +29,7 @@ import { toPublickey } from "./utils";
 
 const PACKET_DATA_SIZE = 1280 - 40 - 8;
 const PUBLICKEY_LENGTH = 32;
+const SIGNATURE_LENGTH = 64;
 const VERSION_PREFIX_MASK = 0x7f;
 
 export type Instruction = {
@@ -52,6 +53,22 @@ export class Transaction {
 
     constructor(blockHash: Base58String) {
         this.#recentBlockhash = blockHash;
+    }
+
+    static from(data: Buffer): Transaction {
+        const byteArray = [...data];
+        const signatureCount = decodeLength(byteArray);
+        const signatures = byteArray.splice(0, signatureCount * SIGNATURE_LENGTH);
+
+        const tx = Transaction.fromMessage(Buffer.from(byteArray));
+        for (const publickey of tx.#signedKeys) {
+            const signature = Buffer.from(signatures.splice(0, SIGNATURE_LENGTH));
+            const isNull = signature.findIndex(n => n !== 0) < 0;
+
+            if (!isNull) tx.#sigMap[publickey] = signature;
+        }
+
+        return tx;
     }
 
     static fromMessage(data: Buffer): Transaction {
@@ -90,6 +107,8 @@ export class Transaction {
     }
 
     dataForSign(feePayer?: HexString): Buffer {
+        if (this.#cache) return this.#cache;
+
         this.#cache = this.serializeMessage(feePayer);
         return this.#cache;
     }
@@ -97,7 +116,9 @@ export class Transaction {
     addSignature(publickey: HexString, signature: Buffer) {
         if (!this.#cache) throw Error("message serialization needed");
 
-        if (signature.length !== 64) throw Error(`invalid signature length, got ${signature.toString("hex")}`);
+        if (signature.length !== SIGNATURE_LENGTH) {
+            throw Error(`invalid signature length, got ${signature.toString("hex")}`);
+        }
 
         if (!this.#signedKeys.find(x => x === publickey))
             throw Error(`invalid account for siging, got ${Base58.encode(Buffer.from(publickey, "hex"))}`);
@@ -110,7 +131,7 @@ export class Transaction {
         if (!this.#cache) throw Error("message serialization needed");
 
         const sigCount = encodeLength(this.#signedKeys.length);
-        const size = sigCount.length + this.#signedKeys.length * 64 + this.#cache!.length;
+        const size = sigCount.length + this.#signedKeys.length * SIGNATURE_LENGTH + this.#cache!.length;
         if (size > PACKET_DATA_SIZE) throw Error(`transaction too large (maximum: ${PACKET_DATA_SIZE}), got ${size}`);
         const wire = Buffer.alloc(size);
 
@@ -119,11 +140,15 @@ export class Transaction {
             const publickey = Buffer.from(key, "hex");
             const sig = this.#sigMap[key];
 
-            if (!nacl.sign.detached.verify(this.#cache!, sig, publickey))
-                throw Error(`invalid signature, got ${sig.toString("hex")} for ${key}`);
+            if (sig) {
+                if (!nacl.sign.detached.verify(this.#cache!, sig, publickey)) {
+                    throw Error(`invalid signature, got ${sig.toString("hex")} for ${key}`);
+                }
 
-            sig.copy(wire, offset);
-            offset += 64;
+                sig.copy(wire, offset);
+            }
+
+            offset += SIGNATURE_LENGTH;
         }
 
         this.#cache!.copy(wire, offset);

@@ -103,6 +103,11 @@ export type txDetail = {
     txType?: TransactionType
 };
 
+export type txOption = {
+    feePayer?: Base58String,
+    txType?: TransactionType,
+};
+
 export const ow_ownership = ow.object.partialShape({
     path: ow_path,
     account: ow_address
@@ -113,6 +118,11 @@ export const ow_txDetail = ow.object.partialShape({
     ownerships: ow.array.ofType(ow_ownership).nonEmpty,
     txType: ow.any(ow.undefined, ow_TransactionType)
 });
+
+export const ow_txOption = ow.object.partialShape({
+    feePayer: ow.any(ow.undefined, ow_address),
+    txType: ow.any(ow.undefined, ow_TransactionType)
+})
 
 export const InstructionMap: { [type: string]: Function } = {}
 InstructionMap[InstructionType.CreateAccount] = SystemInstruction.createAccount;

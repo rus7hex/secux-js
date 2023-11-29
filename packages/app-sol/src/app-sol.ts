@@ -21,14 +21,14 @@ import ow from "ow";
 import { ArgumentError } from "ow";
 import { Base58 } from "@secux/utility/lib/bs58";
 import { SecuxTransactionTool } from "@secux/protocol-transaction";
-import { EllipticCurve, ow_TransactionType, TransactionType } from "@secux/protocol-transaction/lib/interface";
+import { EllipticCurve, TransactionType } from "@secux/protocol-transaction/lib/interface";
 import {
     communicationData, getBuffer, ow_communicationData, toCommunicationData, wrapResult
 } from "@secux/utility/lib/communication";
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
 import {
     ATAOption, BuiltinInstruction, Instruction, InstructionMap, Ownership, ow_address, ow_ATAOption,
-    ow_ownership, ow_path, ow_publickey, ow_SeedOption, ow_txDetail, SeedOption, txDetail
+    ow_ownership, ow_path, ow_publickey, ow_SeedOption, ow_txDetail, SeedOption, txDetail, txOption, ow_txOption
 } from "./interface";
 import { Transaction } from "./transaction";
 import { checkFWVersion, loadPlugin, Logger, Signature } from "@secux/utility";
@@ -163,33 +163,30 @@ export class SecuxSOL {
             });
         }
 
-        const sigData = tx.dataForSign(toPublickey(feePayer));
-        return SecuxSOL.prepareSignSerialized(feePayer, sigData, content.ownerships, content.txType);
+        tx.dataForSign(toPublickey(feePayer));
+
+        return SecuxSOL.prepareSignSerialized(tx.serialize(), content.ownerships, { txType: content.txType });
     }
 
     /**
      * Prepare data for signing.
-     * @param {string} feePayer solana account
-     * @param {communicationData} sigData serialized message (legacy / v0)
+     * @param {communicationData} transaction serialized transaction (legacy / v0)
      * @param {Array<Ownership>} ownerships accounts that need to sign transaction
-     * @param {TransactionType} [txType] transaction type (normal, token, NFT)
+     * @param {txOption} [option]
      * @returns {prepared} prepared object
      */
     static prepareSignSerialized(
-        feePayer: string,
-        sigData: communicationData,
+        transaction: communicationData,
         ownerships: Array<Ownership>,
-        txType?: TransactionType
+        option?: txOption
     ): { commandData: communicationData, serialized: communicationData } {
         checkFWVersion("mcu", mcu[ITransport.deviceType], ITransport.mcuVersion);
         checkFWVersion("se", se, ITransport.seVersion);
-        ow(feePayer, ow_address);
-        ow(sigData, ow_communicationData);
+        ow(transaction, ow_communicationData);
         ow(ownerships, ow.array.ofType(ow_ownership).nonEmpty);
-        ow(txType, ow.any(ow.undefined, ow_TransactionType));
+        if (option) ow(option, ow_txOption);
 
-        const _sigData = toBuffer(sigData);
-        const tx = Transaction.fromMessage(_sigData);
+        const tx = Transaction.from(getBuffer(transaction));
         const signers = tx.Signers.map(x => SecuxSOL.addressConvert(x));
         if (signers.length < ownerships.length) {
             logger?.warn(`expect ${signers.length} signers, but got ${ownerships.length}`);
@@ -212,17 +209,18 @@ export class SecuxSOL {
             }
         }
 
-        const txs = paths.map(_ => _sigData);
+        const sigData = tx.dataForSign(option?.feePayer);
+        const txs = paths.map(_ => sigData);
         const commandData = SecuxTransactionTool.signRawTransactionList(
             paths, txs, undefined,
             {
-                tp: txType ?? TransactionType.NORMAL,
+                tp: option?.txType ?? TransactionType.NORMAL,
                 curve: EllipticCurve.ED25519
             }
         );
 
         const serialized = Buffer.from(JSON.stringify({
-            rawTx: _sigData.toString("hex"),
+            rawTx: sigData.toString("hex"),
             map: ownerships.map(x => toPublickey(x.account!))
         }));
 
@@ -316,12 +314,11 @@ export class SecuxSOL {
         throw Error("Solana(SOL) do not support xpub.");
     }
 
-    static async sign(this: ITransport, feePayerOrPath: string, content: any, ...args: any[]) {
+    static async sign(this: ITransport, ...args: any[]) {
         // sign message
         try {
-            ow(feePayerOrPath, ow_path);
-            const path = feePayerOrPath;
-            const data = SecuxSOL.prepareSignMessage(path, content);
+            ow(args[0], ow_path);
+            const data = SecuxSOL.prepareSignMessage(args[0], args[1]);
             const rsp = await this.Exchange(getBuffer(data));
             const signature = SecuxSOL.resolveSignature(rsp);
 
@@ -331,22 +328,26 @@ export class SecuxSOL {
             if (!(error instanceof ArgumentError)) throw error;
         }
 
-        const feePayer = feePayerOrPath;
-        if (typeof content === "string" || Buffer.isBuffer(content)) {
-            const { commandData, serialized } = SecuxSOL.prepareSignSerialized(feePayer, content, args[0], args[1]);
+        // sign serialized
+        try {
+            const { commandData, serialized } = SecuxSOL.prepareSignSerialized(args[0], args[1], args[2]);
             const rsp = await this.Exchange(getBuffer(commandData));
             const raw_tx = SecuxSOL.resolveTransaction(rsp, serialized);
 
             return { raw_tx };
         }
+        catch (error) {
+            if (!(error instanceof ArgumentError)) throw error;
+        }
 
-        for (const owner of content.ownerships) {
+        // default
+        for (const owner of args[1].ownerships) {
             if (owner.account) continue;
 
             owner.account = await SecuxSOL.getAddress.call(this, owner.path);
         }
 
-        const { commandData, serialized } = SecuxSOL.prepareSign(feePayer, content);
+        const { commandData, serialized } = SecuxSOL.prepareSign(args[0], args[1]);
         const rsp = await this.Exchange(getBuffer(commandData));
         const raw_tx = SecuxSOL.resolveTransaction(rsp, serialized);
 
@@ -425,6 +426,13 @@ function toBuffer(data: string | Buffer) {
  * @property {string} recentBlockhash a recent blockhash
  * @property {Array<Instruction | BuiltinInstruction>} instructions a least one instruction in a transaction
  * @property {Array<Ownership>} ownerships for signing via SecuX wallet
+ * @property {TransactionType} [txType] transaction type (normal, token, NFT)
+ */
+
+/**
+ * The transaction options.
+ * @typedef {object} txOption
+ * @property {string} [feePayer] solana account (base58 encoded)
  * @property {TransactionType} [txType] transaction type (normal, token, NFT)
  */
 
