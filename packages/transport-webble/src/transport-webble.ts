@@ -70,11 +70,26 @@ class SecuxWebBLE extends ITransport {
      * @returns {SecuxWebBLE}
      */
     static async Create(OnConnected?: Function, OnDisconnected?: Function, devices?: Array<DeviceType>): Promise<SecuxWebBLE> {
-        const types = devices ?? [DeviceType.crypto];
-        const filters = types.map(x => ({ services: [Devices[x].SERVICE] }));
+        const types = devices ?? [DeviceType.crypto, DeviceType.shield];
+        const filters = types.map(x => ({
+            services: [Devices[x].SERVICE],
+            namePrefix: Devices[x].PREFIX,
+            manufacturerData: Devices[x].MANUFACTURE,
+        }));
+
+        const excludedDevices = Object.values(Devices).filter(x => !types.includes(x.TYPE));
+        const excludedFilters: any[] = [];
+        for (const def of excludedDevices) {
+            if (!def.PREFIX) continue;
+
+            excludedFilters.push({ namePrefix: def.PREFIX });
+        }
+
         const device = await navigator.bluetooth.requestDevice({
             filters,
-            optionalServices: [...Object.values(Devices).map(x => x.PRIMARY)]
+            //@ts-ignore
+            exclusionFilters: excludedFilters.length > 0 ? excludedFilters : undefined,
+            optionalServices: Object.values(Devices).map(x => x.PRIMARY),
         });
 
         return new SecuxWebBLE(device, OnConnected ?? callback, OnDisconnected ?? callback);

@@ -29,6 +29,8 @@ type info = {
     TX: string,
     PROTOCOL: number,
     PACKET: number,
+    PREFIX?: string,
+    MANUFACTURE?: any,
 }
 
 export const Devices: { [device: string]: info } = {};
@@ -51,6 +53,20 @@ Devices[DeviceType.nifty] = {
     TX: "7a200003-a171-69b8-8245-c41dd47bd699",
     PROTOCOL: ITransport.PROTOCOLv2,
     PACKET: 112,
+    MANUFACTURE: [
+        { dataPrefix: new Uint8Array([0x53, 0x65, 0x63, 0x75, 0x58, 0x00]), companyIdentifier: 0xafae }
+    ],
+};
+
+Devices[DeviceType.shield] = {
+    TYPE: DeviceType.shield,
+    SERVICE: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+    PRIMARY: "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+    RX: "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+    TX: "6e400003-b5a3-f393-e0a9-e50e24dcca9e",
+    PROTOCOL: ITransport.PROTOCOLv1,
+    PACKET: 64,
+    PREFIX: "SX-",
 };
 
 Object.freeze(Devices);
