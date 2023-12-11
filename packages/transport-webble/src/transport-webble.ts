@@ -74,7 +74,8 @@ class SecuxWebBLE extends ITransport {
         const filters = types.map(x => ({
             services: [Devices[x].SERVICE],
             namePrefix: Devices[x].PREFIX,
-            manufacturerData: Devices[x].MANUFACTURE,
+            // hardware bluetooth issue on 1.4 GHz 4-Core Intel Core i5, 13-inch, 2020
+            // manufacturerData: Devices[x].MANUFACTURE,
         }));
 
         const excludedDevices = Object.values(Devices).filter(x => !types.includes(x.TYPE));
