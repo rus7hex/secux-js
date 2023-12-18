@@ -224,23 +224,21 @@ export class EIP1193Provider extends EthereumProvider {
             params.value = `0x${BigNumber(params.value).toString(16)}`;
         }
 
-        const gas = BigNumber(params.gas);
-        if (!gas.isFinite() || gas.lte(0)) {
-            const { from, to, value, data } = params;
-            params.gas = await this.request(
-                {
-                    method: "eth_estimateGas",
-                    params: [{
-                        from: from || this.#address,
-                        to,
-                        value,
-                        data
-                    }]
-                }
-            );
-        }
-        else {
-            params.gas = `0x${gas.toString(16)}`;
+        const { from, to, value, data } = params;
+        const gas = await this.request(
+            {
+                method: "eth_estimateGas",
+                params: [{
+                    from: from || this.#address,
+                    to,
+                    value,
+                    data
+                }]
+            }
+        );
+        params.gas = `0x${BigNumber(params.gas || 0).toString(16)}`;
+        if (BigNumber(gas).gt(params.gas)) {
+            params.gas = gas;
         }
 
         const gasPrice = BigNumber(params.gasPrice);
