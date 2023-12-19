@@ -943,6 +943,42 @@ export function test(GetDevice) {
         }).timeout(10000);
     });
 
+    it.only("can sign with solana-web3 instructions", async () => {
+        const request = {
+            feePayer: "EW27m4mRo4NbVVzdgkRzeFuEQNJaWHATXUPtqu1saGB2",
+            recentBlockhash: "3e6zAs6VRnprogAvAAo2B77UEAeejEzukH8wXFxqCp27",
+            instructions: [
+                {
+                    programId: "11111111111111111111111111111111",
+                    data: Buffer.from([2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]),
+                    keys: [
+                        {
+                            "isSigner": true,
+                            "isWritable": true,
+                            "pubkey": "EW27m4mRo4NbVVzdgkRzeFuEQNJaWHATXUPtqu1saGB2"
+                        },
+                        {
+                            "isSigner": false,
+                            "isWritable": true,
+                            "pubkey": "6taXYmbuQtgpMjwVPBj1huRfKV1kDjyaXtabGkxeCBzG"
+                        }
+                    ]
+                }
+            ]
+        };
+
+        const { signature } = await GetDevice().sign(
+            request.feePayer,
+            {
+                recentBlockhash: request.recentBlockhash,
+                instructions: request.instructions,
+                ownerships: [
+                    { path: "m/44'/501'/0'", account: request.feePayer }
+                ]
+            }
+        );
+    }).timeout(30000);
+
     if (BROADCAST) {
         describe("broadcast transaction", () => {
             const path_from = `m/44'/501'/8'`;

@@ -21,6 +21,7 @@ import ow from "ow";
 import { ow_checkBufferLength, owTool } from "@secux/utility";
 import { StakeInstruction, SystemInstruction, TokenInstruction } from "./instruction";
 import { ow_TransactionType, TransactionType } from "@secux/protocol-transaction/lib/interface";
+import { communicationData, ow_communicationData } from "@secux/utility/lib/communication";
 
 
 export const ow_address = owTool.base58String.minLength(43).maxLength(44);
@@ -53,18 +54,18 @@ export const ow_SeedOption = ow.object.exactShape({
 
 export type Instruction = {
     programId: Base58String,
-    accounts: Array<{ publickey: string | Buffer, isSigner: boolean, isWritable: boolean }>,
-    data: HexString | Buffer
+    keys: Array<{ pubkey: Base58String, isSigner: boolean, isWritable: boolean }>,
+    data: communicationData
 };
 
 export const ow_instruction = ow.object.partialShape({
     programId: ow_programid,
-    accounts: ow.array.ofType(ow.object.partialShape({
-        publickey: ow_publickey,
+    keys: ow.array.ofType(ow.object.partialShape({
+        pubkey: owTool.base58String,
         isSigner: ow.boolean,
         isWritable: ow.boolean
     })),
-    data: ow.any(owTool.hexString, ow.buffer)
+    data: ow_communicationData
 });
 
 export enum InstructionType {

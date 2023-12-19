@@ -152,14 +152,14 @@ export class SecuxSOL {
                 continue;
             }
 
-            const { programId, accounts, data } = ins as Instruction;
+            const { programId, keys, data } = ins as Instruction;
             tx.addInstruction({
                 programId: toPublickey(programId),
-                accounts: accounts.map(x => ({
+                accounts: keys.map(x => ({
                     ...x,
-                    publickey: x.publickey.toString("hex")
+                    publickey: toPublickey(x.pubkey),
                 })),
-                data: toBuffer(data)
+                data: getBuffer(data)
             });
         }
 
