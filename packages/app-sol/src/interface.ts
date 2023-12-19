@@ -65,7 +65,7 @@ export const ow_instruction = ow.object.partialShape({
         isSigner: ow.boolean,
         isWritable: ow.boolean
     })),
-    data: ow_communicationData
+    data: ow.any(ow.string.empty, ow_communicationData)
 });
 
 export enum InstructionType {
