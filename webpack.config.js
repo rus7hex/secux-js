@@ -53,7 +53,8 @@ module.exports = {
             os: false,
             http: false,
             https: require.resolve('agent-base'),
-            zlib: false
+            zlib: false,
+            querystring: require.resolve("querystring-es3"),
         }
     },
     experiments: {
