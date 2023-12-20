@@ -101,9 +101,9 @@ export class Transaction {
                 else
                     this.#unsignedKeys.push(pk);
             }
-
-            this.#readonlyUnsignedKeys.push(ins.programId);
         }
+
+        this.#readonlyUnsignedKeys.push(ins.programId);
     }
 
     dataForSign(feePayer?: HexString): Buffer {
