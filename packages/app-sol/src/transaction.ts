@@ -257,19 +257,40 @@ export class Transaction {
         const set = new Set<string>();
         if (feePayer) set.add(feePayer);
 
+        const sortOptions: Intl.CollatorOptions = {
+            localeMatcher: 'best fit',
+            usage: 'sort',
+            sensitivity: 'variant',
+            ignorePunctuation: false,
+            numeric: false,
+            caseFirst: 'lower',
+        };
+        const customSort = (list: Array<string>) => {
+            return list.sort((a, b) => {
+                const _a = Base58.encode(Buffer.from(a, "hex"));
+                const _b = Base58.encode(Buffer.from(b, "hex"));
+
+                return _a.localeCompare(_b, "en", sortOptions);
+            });
+        };
+
+        this.#signedKeys = customSort(this.#signedKeys);
         this.#signedKeys.forEach(x => set.add(x));
         this.#signedKeys = [...set];
 
+        this.#readonlySignedKeys = customSort(this.#readonlySignedKeys);
         this.#readonlySignedKeys.forEach(x => set.add(x));
         this.#readonlySignedKeys = [...set].slice(this.#signedKeys.length);
 
         this.#numRequiredSignatures = set.size;
         this.#numReadonlySignedAccounts = this.#readonlySignedKeys.length;
 
+        this.#unsignedKeys = customSort(this.#unsignedKeys);
         this.#unsignedKeys.forEach(x => set.add(x));
         this.#unsignedKeys = [...set].slice(this.#numRequiredSignatures);
 
         let cur = set.size;
+        this.#readonlyUnsignedKeys = customSort(this.#readonlyUnsignedKeys);
         this.#readonlyUnsignedKeys.forEach(x => set.add(x));
         this.#readonlyUnsignedKeys = [...set].slice(cur);
 
