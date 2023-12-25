@@ -490,19 +490,20 @@ export function test(GetDevice) {
         describe("SecuxUpdate.UpdateMCU()", () => {
             let firmware;
             it("can get mcu firmware file from server", async () => {
-                const fetchURL = "https://firmware-test.secuxtech.com/firmware/downloadMcuFile";
+                const fetchURL = "https://wsweb-sandbox.secuxtech.com/firmware/latest";
                 const rsp = await fetch(fetchURL, {
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     method: 'POST',
                     body: JSON.stringify({
-                        fileName: GetDevice().DeviceType == "nifty" ? "t20_fw_app" : "secux_2_26",
-                    }),
+                        model: GetDevice().Model,
+                        type: "mcu",
+                    })
                 });
 
-                const data = await rsp.arrayBuffer();
-                firmware = new Uint8Array(data);
+                const { mcu_file } = await rsp.json();
+                firmware = Buffer.from(mcu_file, "base64");
 
                 assert.isTrue(firmware.length > 0);
             }).timeout(10000);

@@ -18,7 +18,7 @@ limitations under the License.
 
 
 import { ITransport } from "@secux/transport";
-import { SEINFO, StatusCallback } from "./interface";
+import { ITransportNordic, SEINFO, StatusCallback } from "./interface";
 import * as se from "./se-update";
 import { Logger } from "@secux/utility";
 import {
@@ -29,7 +29,6 @@ const logger = Logger?.child({ id: "protocol" });
 
 
 export const BOOTLOADER = Object.freeze({ vendorId: 0x1915, productId: 0x4296 });
-
 
 export class SecuxUpdate {
     /**
@@ -119,15 +118,19 @@ export class SecuxUpdate {
 
         // Web Bluetooth API cannot use in service worker.
         const { NordicBLE } = require("./nordic-ble");
-        const { beginUpdate, proceed } = require("./dfu");
         const device = await NordicBLE.Create();
         await device.Connect();
 
-        window.addEventListener("beforeunload", alertExit);
+        await SecuxUpdate.UpdateMCUWithDevice(device, data, callback);
+    }
 
+    static async UpdateMCUWithDevice(device: ITransportNordic, data: Uint8Array, callback?: StatusCallback) {
+        const { beginUpdate, proceed } = require("./dfu");
+
+        window?.addEventListener?.("beforeunload", alertExit);
         try {
             const empty = Buffer.alloc(0);
-            let cmd = beginUpdate(data, false);
+            let cmd = beginUpdate(data, false, device.packetSize);
             while (cmd.data.length !== 0) {
                 let rsp = empty;
                 if (cmd.needResponse) {
@@ -140,11 +143,14 @@ export class SecuxUpdate {
 
                 callback?.call(undefined, cmd.progress);
 
+                await new Promise(_ => setTimeout(_, 1));
                 cmd = proceed(rsp);
             }
+
+            callback?.call(undefined, 100);
         }
         finally {
-            window.removeEventListener("beforeunload", alertExit);
+            window?.removeEventListener?.("beforeunload", alertExit);
         }
     }
 

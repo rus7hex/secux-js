@@ -19,11 +19,15 @@ limitations under the License.
 
 import ow from "ow";
 import { owTool } from "@secux/utility";
-
+import { ITransport } from "@secux/transport";
 
 export const ow_AccountPath = ow.string.matches(/^m(\/\d+'){3}/);
 const ow_accountName = ow.string.matches(/^[a-zA-Z0-9._-]+(\s+[a-zA-Z0-9._-]+)*$/).maxLength(16);
 export const ow_chainId = ow.any(ow.number.not.negative, owTool.numberString, owTool.prefixedhexString);
+
+export interface ITransportNordic extends ITransport {
+    WritePacket(data: Buffer): Promise<void>;
+}
 
 export type VersionInfo = {
     transportVersion: number,

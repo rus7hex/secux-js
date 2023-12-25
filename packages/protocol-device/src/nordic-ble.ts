@@ -18,6 +18,7 @@ limitations under the License.
 
 
 import { ITransport } from "@secux/transport";
+import { ITransportNordic } from "./interface";
 
 
 const SERVICE_UUID = 0xFE59;
@@ -26,7 +27,7 @@ const PACKET_UUID = "8ec90002-f315-4f60-9fb8-838830daea50";
 const callback = () => { };
 
 
-export class NordicBLE extends ITransport {
+export class NordicBLE extends ITransport implements ITransportNordic {
     #device: BluetoothDevice;
     #control?: BluetoothRemoteGATTCharacteristic;
     #packet?: BluetoothRemoteGATTCharacteristic;
@@ -36,7 +37,7 @@ export class NordicBLE extends ITransport {
     constructor(device: BluetoothDevice, OnConnected: Function = callback, OnDisconnected: Function = callback) {
         super();
 
-        this.packetSize = 64;
+        this.packetSize = 240;
         this.#device = device;
         this.#OnConnected = OnConnected;
         this.#OnDisconnected = OnDisconnected;

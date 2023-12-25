@@ -36,12 +36,15 @@ type Response = {
 }
 
 const cmdQueue: Array<Exchange> = [];
-let updateTotal = 0, updateSize = 0;
+let updateTotal = 0, updateSize = 0, _isUSB = true, _packetSize = 0;
 
 
-export function beginUpdate(data: communicationData, isUSB: boolean): Response {
+export function beginUpdate(data: communicationData, isUSB: boolean, packetSize: number = 64): Response {
     updateTotal = 0;
     updateSize = 0;
+    _isUSB = isUSB;
+    _packetSize = packetSize - packetSize % 16;
+    logger?.info(`packet size: ${_packetSize}`);
     cmdQueue.length = 0;
 
     const pkg = Package.loadSync(getBuffer(data));
@@ -50,11 +53,11 @@ export function beginUpdate(data: communicationData, isUSB: boolean): Response {
 
     if (base) {
         logger?.info("updating base image");
-        update(base.initData, base.imageData, isUSB);
+        update(base.initData, base.imageData);
     }
     if (app) {
         logger?.info("updating app image");
-        update(app.initData, app.imageData, isUSB);
+        update(app.initData, app.imageData);
     }
 
     return wrapResult({
@@ -77,7 +80,7 @@ export function proceed(response: communicationData): Response {
     }
     else {
         // wait for nordic chip processing
-        delaySync();
+        // delaySync();
         updateSize += getBuffer(exchange.data).length - 1;
     }
 
@@ -91,7 +94,7 @@ export function proceed(response: communicationData): Response {
 }
 
 
-function update(init: Uint8Array, firmware: Uint8Array, isUSB: boolean) {
+function update(init: Uint8Array, firmware: Uint8Array) {
     cmdQueue.push({
         data: sendControl(Buffer.from([0x06, 0x01])),
         resolve: (response: communicationData) => {
@@ -105,7 +108,7 @@ function update(init: Uint8Array, firmware: Uint8Array, isUSB: boolean) {
 
             logger?.info("send init packet");
             cmdQueue.unshift(
-                ...transferWithSize(init, Buffer.from([0x01, 0x01]), maxSize, isUSB)
+                ...transferWithSize(init, Buffer.from([0x01, 0x01]), maxSize)
             );
         }
     });
@@ -121,7 +124,7 @@ function update(init: Uint8Array, firmware: Uint8Array, isUSB: boolean) {
 
             logger?.info("send firmware packet");
             cmdQueue.unshift(
-                ...transferWithSize(firmware, Uint8Array.from([0x01, 0x02]), maxSize, isUSB)
+                ...transferWithSize(firmware, Uint8Array.from([0x01, 0x02]), maxSize)
             );
         }
     });
@@ -148,16 +151,16 @@ function recvControl(response: communicationData) {
     throw Error("operation fail");
 }
 
-function transferWithSize(data: Uint8Array, createType: Uint8Array, maxSize: number, isUSB: boolean) {
+function transferWithSize(data: Uint8Array, createType: Uint8Array, maxSize: number) {
     const jobs: Array<Exchange> = [];
 
     // May not need to clean the buffer on device.
-    // transfer(Buffer.alloc(maxSize), createType);
+    // transfer(Buffer.alloc(maxSize), createType, maxSize);
 
     let n = Math.ceil(data.length / maxSize);
     for (let i = 0; i < n; i++) {
         const chunk = data.subarray(i * maxSize, (i + 1) * maxSize);
-        const cmds = transfer(chunk, createType, isUSB);
+        const cmds = transfer(chunk, createType, maxSize);
         cmds[cmds.length - 1].resolve = (response: communicationData) => {
             const rsp = recvControl(response);
             const transfered = rsp.readUInt32LE(0);
@@ -170,6 +173,8 @@ function transferWithSize(data: Uint8Array, createType: Uint8Array, maxSize: num
                 });
             }
             else {
+                logger?.debug(`chunk: ${Buffer.from(chunk).toString("hex")}`);
+                logger?.debug(`transfered: ${Buffer.from(data.slice(0, transfered)).toString("hex")}`);
                 throw Error("data transfer error");
             }
         };
@@ -180,7 +185,7 @@ function transferWithSize(data: Uint8Array, createType: Uint8Array, maxSize: num
     return jobs;
 }
 
-function transfer(data: Uint8Array, createType: Uint8Array, isUSB: boolean): Array<Exchange> {
+function transfer(data: Uint8Array, createType: Uint8Array, maxSize: number): Array<Exchange> {
     const jobs: Array<Exchange> = [];
     const lenBuffer = Buffer.alloc(4);
     lenBuffer.writeUInt32LE(data.length);
@@ -189,7 +194,7 @@ function transfer(data: Uint8Array, createType: Uint8Array, isUSB: boolean): Arr
         resolve: recvControl
     });
 
-    const packets = buildPacketBuffer(data, isUSB);
+    const packets = buildPacketBuffer(data, _isUSB, Math.min(maxSize, _packetSize) - 4);
     for (const packet of packets) {
         jobs.push({
             data: toCommunicationData(packet)
