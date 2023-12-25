@@ -22,6 +22,7 @@ import { APDUResolver, BaseResolver, BaseResolverV2, CommandResolver, IResolver,
 import { owTool, supported_coin } from "@secux/utility";
 import { communicationData, getBuffer, Send, to_L1_APDU } from "@secux/utility/lib/communication";
 import { Base58 } from "@secux/utility/lib/bs58";
+const AsyncLock = require("async-lock");
 import ow from "ow";
 export { ITransport, IAPDUResponse };
 
@@ -43,6 +44,7 @@ abstract class ITransport {
 
     OnNotification?: (data: Buffer) => void;
     autoApplyL1: boolean = true;
+    #lock = new AsyncLock();
 
 
     /**
@@ -206,24 +208,26 @@ abstract class ITransport {
 
 
     async #Read(): Promise<Buffer> {
-        let isTerminated = false;
-        this.#resovled = null;
+        return await this.#lock.acquire("read_lock", async () => {
+            let isTerminated = false;
 
-        setTimeout(() => {
-            isTerminated = !this.#resovled?.data;
-        }, this.#timeout);
+            setTimeout(() => {
+                isTerminated = !this.#resovled?.data;
+            }, this.#timeout);
 
-        return await new Promise((resolve, reject) => {
-            const timer = setInterval(() => {
-                if (this.#resovled?.data) {
-                    resolve(this.#resovled.data);
-                    clearInterval(timer);
-                }
-                else if (isTerminated) {
-                    reject(`TransferError: timeout (${this.#timeout} ms)`);
-                    clearInterval(timer);
-                }
-            }, 1);
+            return await new Promise((resolve, reject) => {
+                const timer = setInterval(() => {
+                    if (this.#resovled?.data) {
+                        resolve(this.#resovled.data);
+                        this.#resovled = null;
+                        clearInterval(timer);
+                    }
+                    else if (isTerminated) {
+                        reject(`TransferError: timeout (${this.#timeout} ms)`);
+                        clearInterval(timer);
+                    }
+                }, 1);
+            });
         });
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "@secux/transport",
-  "version": "3.3.11",
+  "version": "3.3.12",
   "description": "SecuX Hardware Wallet transport API for communication layer",
   "keywords": [
     "secux",
@@ -27,6 +27,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@secux/utility": "^3.0.14"
+    "@secux/utility": "^3.0.14",
+    "async-lock": "^1.4.1"
   }
 }
