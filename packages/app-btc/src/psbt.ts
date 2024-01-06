@@ -363,7 +363,7 @@ class SecuxPsbt {
                     {
                         pubkey: tweaked,
                         signature: (sighashType === Transaction.SIGHASH_DEFAULT) ? signature
-                            : Buffer.from([sighashType, ...signature])
+                            : Buffer.from([...signature, sighashType])
                     },
                 ];
             }
@@ -381,17 +381,7 @@ class SecuxPsbt {
             const { script, scriptType } = getScriptFromInput(input, this.#coin);
 
             if (!script) throw new Error(`No script found for input #${idx}`);
-
-            // check sighash type
-            if (input.sighashType && input.partialSig) {
-                const { partialSig, sighashType } = input;
-
-                for (const sig of partialSig) {
-                    const { hashType } = Script.decode(sig.signature);
-
-                    if (hashType !== sighashType) throw new Error('Signature sighash does not match input sighash type');
-                }
-            }
+            this.#checkSighashType(input, scriptType);
 
             const { finalScriptSig, finalScriptWitness } = prepareFinalScripts(scriptType!, input.partialSig!);
 
@@ -553,6 +543,19 @@ class SecuxPsbt {
         }
 
         if (throwError && error) throw error;
+    }
+
+    #checkSighashType(input: PsbtInput, type?: ScriptType) {
+        if (type === ScriptType.P2TR) return;
+        if (!input.sighashType) return;
+        if (!input.partialSig) return;
+
+        const { partialSig, sighashType } = input;
+        for (const sig of partialSig) {
+            const { hashType } = Script.decode(sig.signature);
+
+            if (hashType !== sighashType) throw Error('Signature sighash does not match input sighash type');
+        }
     }
 
     #optimizeByFee(feeRate: number, changeIndex: number = 0) {
