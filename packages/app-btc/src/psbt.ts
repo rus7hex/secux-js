@@ -253,7 +253,7 @@ class SecuxPsbt {
 
     PrepareSign(feeRate?: number): { commands: Array<communicationData>, rawTx: string } {
         // treat last output as change
-        if (feeRate) this.#optimizeByFee(feeRate, this.#tx.outs.length - 1);
+        if (feeRate) this.#modifyByFee(feeRate, this.#tx.outs.length - 1);
         this.#checkDust(!!feeRate);
 
         const outConfirm = Buffer.from([
@@ -558,7 +558,7 @@ class SecuxPsbt {
         }
     }
 
-    #optimizeByFee(feeRate: number, changeIndex: number = 0) {
+    #modifyByFee(feeRate: number, changeIndex: number = 0) {
         const vSize = this.#estimateVSize();
         const estimateFee = Math.round(vSize * feeRate);
         logger?.info(`Estimated fee is ${estimateFee}, with ${feeRate} fee rates.`);
@@ -569,14 +569,10 @@ class SecuxPsbt {
 
         if (actualFee < estimateFee) logger?.warn(`Estimated fee is ${estimateFee}, but got ${actualFee}.`);
 
-        if (actualFee > estimateFee || actualFee < vSize) {
-            const change = this.#tx.outs[changeIndex].value;
-            const value = actualFee - estimateFee;
-            if (value < 0) throw Error(`Insufficient amount, expect ${spend + estimateFee}, but got ${total}.`);
-
-            this.#tx.outs[changeIndex].value = value;
-            logger?.info(`Modify output#${changeIndex} amount from ${change} to ${value}.`);
-        }
+        const change = this.#tx.outs[changeIndex].value;
+        const modified_change = change + (actualFee - estimateFee);
+        this.#tx.outs[changeIndex].value = modified_change;
+        logger?.info(`Modify output#${changeIndex} amount from ${change} to ${modified_change}.`);
     }
 }
 
