@@ -125,6 +125,7 @@ class SecuxPsbt {
                     script: this.#payment.p2tr(this.#coin, { publickey }).scriptPublickey,
                     value
                 };
+                mix2.sighashType = Transaction.SIGHASH_ALL | Transaction.SIGHASH_ANYONECANPAY;
                 break;
 
             default:
