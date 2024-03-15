@@ -18,6 +18,7 @@ limitations under the License.
 
 
 import * as BufferLayout from "@solana/buffer-layout";
+import { u64 } from "./bigintLayout";
 
 
 const publicKeyLayout = (property: string = 'publicKey') => BufferLayout.blob(32, property);
@@ -90,6 +91,24 @@ export const instructionLayout = (instruction: InstructionData) => BufferLayout.
         instruction.data.length,
         'data',
     ),
+]);
+
+export type setComputeUnitLimitData = {
+    units: number
+};
+
+export const setComputeUnitLimitLayout = BufferLayout.struct<any>([
+    BufferLayout.u8('instruction'),
+    BufferLayout.u32('units')
+]);
+
+export type setComputeUnitPriceData = {
+    microLamports: number | bigint;
+};
+
+export const setComputeUnitPriceLayout = BufferLayout.struct<any>([
+    BufferLayout.u8('instruction'),
+    u64('microLamports')
 ]);
 
 export type signData = {

@@ -998,16 +998,28 @@ export function test(GetDevice) {
                 const recentBlockhash = (await api.getRecentBlockhash("confirmed")).blockhash;
                 const { raw_tx } = await GetDevice().sign(from.toString(), {
                     recentBlockhash,
-                    instructions: SecuxSOL.Action.transferToken(
+                    instructions: [
                         {
-                            to: "J6yvNwvqVukGFMkBt2FvzbYVDDmM8cUbFNgWMk3EbK42",
-                            owner: from.toString(),
-                            amount: 1e4,
-                            mint: "HdJ8pzRMFquse6MAdLTm2JHum51WFkocZX8YzXpPjNpG",
-                            decimal: 6,
-                            createAccount: true
+                            type: "setComputeUnitPrice",
+                            params: {
+                                microLamports: 100000,
+                            }
                         },
-                    ),
+                        {
+                            type: "setComputeUnitLimit",
+                            params: {
+                                units: 200000,
+                            }
+                        },
+                        {
+                            type: "transfer",
+                            params: {
+                                from: from.toString(),
+                                to: "GjJyeC1r2RgkuoCWMyPYkCWSGSGLcz266EaAkLA27AhL",
+                                lamports: 1e8,
+                            }
+                        }
+                    ], 
                     ownerships: [
                         { path: path_from, account: from.toString() }
                     ]

@@ -19,7 +19,7 @@ limitations under the License.
 
 import ow from "ow";
 import { ow_checkBufferLength, owTool } from "@secux/utility";
-import { StakeInstruction, SystemInstruction, TokenInstruction } from "./instruction";
+import { ComputeBudgetInstruction, StakeInstruction, SystemInstruction, TokenInstruction } from "./instruction";
 import { ow_TransactionType, TransactionType } from "@secux/protocol-transaction/lib/interface";
 import { communicationData, ow_communicationData } from "@secux/utility/lib/communication";
 
@@ -69,6 +69,9 @@ export const ow_instruction = ow.object.partialShape({
 });
 
 export enum InstructionType {
+    SetUnitLimit = "setComputeUnitLimit",
+    SetUnitPrice = "setComputeUnitPrice",
+
     CreateAccount = "createAccount",
     Transfer = "transfer",
     CreateAccountWithSeed = "createAccountWithSeed",
@@ -126,6 +129,8 @@ export const ow_txOption = ow.object.partialShape({
 })
 
 export const InstructionMap: { [type: string]: Function } = {}
+InstructionMap[InstructionType.SetUnitLimit] = ComputeBudgetInstruction.setComputeUnitLimit;
+InstructionMap[InstructionType.SetUnitPrice] = ComputeBudgetInstruction.setComputeUnitPrice;
 InstructionMap[InstructionType.CreateAccount] = SystemInstruction.createAccount;
 InstructionMap[InstructionType.Transfer] = SystemInstruction.transfer;
 InstructionMap[InstructionType.CreateAssociatedAccount] = TokenInstruction.createAssociatedTokenAccount;

@@ -19,7 +19,10 @@ limitations under the License.
 
 import * as BufferLayout from "@solana/buffer-layout";
 import { Base58String, HexString, ow_address, ow_programid, ow_publickey } from "./interface";
-import { createLayout, createWithSeedLayout, getAlloc, transferLayout } from "./layout";
+import { 
+    createLayout, createWithSeedLayout, getAlloc, setComputeUnitLimitData, setComputeUnitLimitLayout, setComputeUnitPriceData, 
+    setComputeUnitPriceLayout, transferLayout 
+} from "./layout";
 import { Instruction } from "./transaction";
 import { createWithSeed, toPublickey } from "./utils";
 import ow from "ow";
@@ -134,6 +137,36 @@ export class SystemInstruction {
             accounts,
             data
         }
+    }
+}
+
+export class ComputeBudgetInstruction {
+    static readonly programId: HexString = "0306466fe5211732ffecadba72c39be7bc8ce5bbc5f7126b2c439b3a40000000";
+
+    static setComputeUnitLimit(params: setComputeUnitLimitData): Instruction {
+        const data = encodeData(setComputeUnitLimitLayout, {
+            instruction: 2,
+            ...params
+        });
+
+        return {
+            programId: ComputeBudgetInstruction.programId,
+            accounts: [],
+            data
+        };
+    }
+
+    static setComputeUnitPrice(params: setComputeUnitPriceData): Instruction {
+        const data = encodeData(setComputeUnitPriceLayout, {
+            instruction: 3,
+            ...params
+        });
+
+        return {
+            programId: ComputeBudgetInstruction.programId,
+            accounts: [],
+            data
+        };
     }
 }
 
