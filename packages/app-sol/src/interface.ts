@@ -68,6 +68,22 @@ export const ow_instruction = ow.object.partialShape({
     data: ow.any(ow.string.empty, ow_communicationData)
 });
 
+export type HexInstruction = {
+    programId: HexString,
+    accounts: Array<{ publickey: HexString, isSigner: boolean, isWritable: boolean }>,
+    data: communicationData
+};
+
+export const ow_hexInstruction = ow.object.partialShape({
+    programId: ow_publickey,
+    accounts: ow.array.ofType(ow.object.partialShape({
+        publickey: ow_publickey,
+        isSigner: ow.boolean,
+        isWritable: ow.boolean
+    })),
+    data: ow.any(ow.string.empty, ow_communicationData)
+});
+
 export enum InstructionType {
     SetUnitLimit = "setComputeUnitLimit",
     SetUnitPrice = "setComputeUnitPrice",
@@ -118,7 +134,7 @@ export const ow_ownership = ow.object.partialShape({
 });
 export const ow_txDetail = ow.object.partialShape({
     recentBlockhash: ow_address,
-    instructions: ow.array.ofType(ow.any(ow_instruction, ow_builtinInstruction)).nonEmpty,
+    instructions: ow.array.ofType(ow.any(ow_builtinInstruction, ow_instruction, ow_hexInstruction)).nonEmpty,
     ownerships: ow.array.ofType(ow_ownership).nonEmpty,
     txType: ow.any(ow.undefined, ow_TransactionType)
 });

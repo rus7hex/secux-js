@@ -152,15 +152,21 @@ export class SecuxSOL {
                 continue;
             }
 
-            const { programId, keys, data } = ins as Instruction;
-            tx.addInstruction({
-                programId: toPublickey(programId),
-                accounts: keys.map(x => ({
-                    ...x,
-                    publickey: toPublickey(x.pubkey),
-                })),
-                data: getBuffer(data)
-            });
+            try {
+                const { programId, keys, data } = ins as Instruction;
+                tx.addInstruction({
+                    programId: toPublickey(programId),
+                    accounts: keys.map(x => ({
+                        ...x,
+                        publickey: toPublickey(x.pubkey),
+                    })),
+                    data: getBuffer(data)
+                });
+            }
+            catch {
+                //@ts-ignore
+                tx.addInstruction(ins);
+            }
         }
 
         tx.dataForSign(toPublickey(feePayer));
