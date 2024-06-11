@@ -31,7 +31,7 @@ import { ERC20 } from "./erc20";
 import { ERC721 } from "./erc721";
 import { ERC1155 } from "./erc1155";
 import { IPlugin, ITransport, staticImplements } from "@secux/transport";
-export { SecuxETH, tx155, tx1559 };
+export { SecuxETH, tx155, tx1559, ETHTransactionBuilder };
 const logger = Logger?.child({ id: "ethereum" });
 const ow_path = ow_strictPath(60, 44);
 const mcu = {
@@ -325,7 +325,7 @@ class SecuxETH {
 
         return wrapResult({
             commandData: data,
-            rawTx: toCommunicationData(builder.serialize())
+            rawTx: builder.serialize()
         });
     }
 
@@ -363,7 +363,11 @@ class SecuxETH {
             const data = SecuxETH.prepareSignSerialized(path, args, option);
             const rsp = await this.Exchange(getBuffer(data));
             let signature = Buffer.from(SecuxETH.resolveSignature(rsp), "hex");
-            signature = ETHTransactionBuilder.deserialize(getBuffer(args)).getSignature(signature);
+            signature = getBuffer(
+                ETHTransactionBuilder
+                    .deserialize(args)
+                    .getSignature(signature)
+            );
 
             return {
                 raw_tx: SecuxETH.resolveTransaction(rsp, args),
@@ -410,7 +414,11 @@ class SecuxETH {
         const { commandData, rawTx } = func(path, args, option);
         const rsp = await this.Exchange(getBuffer(commandData));
         let signature = Buffer.from(SecuxETH.resolveSignature(rsp), "hex");
-        signature = ETHTransactionBuilder.deserialize(getBuffer(rawTx)).getSignature(signature);
+        signature = getBuffer(
+            ETHTransactionBuilder
+                .deserialize(getBuffer(rawTx))
+                .getSignature(signature)
+        );
 
         return {
             raw_tx: SecuxETH.resolveTransaction(rsp, rawTx),
@@ -466,7 +474,7 @@ export function prepareSign(path: string, builder: ETHTransactionBuilder, tp?: T
 
     return wrapResult({
         commandData: buf,
-        rawTx: toCommunicationData(builder.serialize())
+        rawTx: builder.serialize()
     });
 }
 
