@@ -1,6 +1,6 @@
 {
   "name": "@secux/utility",
-  "version": "3.0.17",
+  "version": "3.0.18",
   "description": "SecuX Hardware Wallet internal tools for SDK",
   "keywords": [
     "secux",

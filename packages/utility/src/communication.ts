@@ -84,6 +84,36 @@ export function to_L1_APDU(data: communicationData): communicationData {
     return toCommunicationData(apdu_L1);
 }
 
+export function communicationWrapper(instance: object): any {
+    const valueHandler = function (value: any) {
+        if (Buffer.isBuffer(value)) return value.toString("base64");
+        if (typeof value === "object") return JSON.stringify(value);
+
+        return value;
+    };
+
+    const classHandler = {
+        get(target: object, prop: string | symbol) {
+            const value = target[prop];
+            if (typeof value === "function") {
+                return function (...args: any[]) {
+                    const execResult = value.apply(target, args);
+
+                    if (execResult instanceof Promise) {
+                        return execResult.then(a => valueHandler(a));
+                    }
+
+                    return valueHandler(execResult);
+                }
+            }
+
+            return valueHandler(value);
+        },
+    };
+
+    return new Proxy(instance, classHandler);
+}
+
 export class TransportStatusError extends Error {
     #name: string = "TransportStatusError";
     #message: string;
