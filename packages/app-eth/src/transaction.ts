@@ -224,7 +224,8 @@ class ETHTransactionBuilder {
         return parseInt(Buffer.from(this.tx.chainId).toString("hex"), 16);
     }
 
-    get tx() { return wrapResult(_ethTx.get(this)); }
+    get tx() { return _ethTx.get(this); }
+    get txJSON() { return wrapResult(this.tx); }
 }
 
 class EIP1559Builder extends ETHTransactionBuilder {
