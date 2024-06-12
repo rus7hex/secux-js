@@ -325,7 +325,7 @@ class SecuxETH {
 
         return wrapResult({
             commandData: data,
-            rawTx: builder.serialize()
+            rawTx: toCommunicationData(builder.serialize())
         });
     }
 
@@ -363,11 +363,7 @@ class SecuxETH {
             const data = SecuxETH.prepareSignSerialized(path, args, option);
             const rsp = await this.Exchange(getBuffer(data));
             let signature = Buffer.from(SecuxETH.resolveSignature(rsp), "hex");
-            signature = getBuffer(
-                ETHTransactionBuilder
-                    .deserialize(args)
-                    .getSignature(signature)
-            );
+            signature = ETHTransactionBuilder.deserialize(getBuffer(args)).getSignature(signature);
 
             return {
                 raw_tx: SecuxETH.resolveTransaction(rsp, args),
@@ -414,11 +410,7 @@ class SecuxETH {
         const { commandData, rawTx } = func(path, args, option);
         const rsp = await this.Exchange(getBuffer(commandData));
         let signature = Buffer.from(SecuxETH.resolveSignature(rsp), "hex");
-        signature = getBuffer(
-            ETHTransactionBuilder
-                .deserialize(getBuffer(rawTx))
-                .getSignature(signature)
-        );
+        signature = ETHTransactionBuilder.deserialize(getBuffer(rawTx)).getSignature(signature);
 
         return {
             raw_tx: SecuxETH.resolveTransaction(rsp, rawTx),
@@ -474,7 +466,7 @@ export function prepareSign(path: string, builder: ETHTransactionBuilder, tp?: T
 
     return wrapResult({
         commandData: buf,
-        rawTx: builder.serialize()
+        rawTx: toCommunicationData(builder.serialize())
     });
 }
 

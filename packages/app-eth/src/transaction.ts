@@ -24,7 +24,6 @@ import { BigNumber } from 'bignumber.js';
 import ow from "ow";
 import { ow_tx1559 } from './interface';
 import { Logger } from "@secux/utility";
-import { communicationData, getBuffer, toCommunicationData, wrapResult } from "@secux/utility/lib/communication";
 export { getBuilder, ETHTransactionBuilder, EIP1559Builder };
 const logger = Logger?.child({ id: "ethereum" });
 
@@ -41,11 +40,9 @@ function getBuilder(data: any) {
     return new ETHTransactionBuilder(data);
 }
 
-const _ethTx = new WeakMap();
+const __tx = new WeakMap();
 class ETHTransactionBuilder {
-    static deserialize(serialized: communicationData): ETHTransactionBuilder {
-        serialized = getBuffer(serialized);
-
+    static deserialize(serialized: Buffer): ETHTransactionBuilder {
         // legacy transaction
         if (serialized[0] >= 0xc0) {
             const values = rlp.decode(serialized);
@@ -97,7 +94,7 @@ class ETHTransactionBuilder {
 
     constructor(tx: any) {
         const _tx = { ...tx };
-        _ethTx.set(this, _tx);
+        __tx.set(this, _tx);
 
         if (typeof tx.chainId === "string") {
             let str = tx.chainId.slice(2);
@@ -143,9 +140,9 @@ class ETHTransactionBuilder {
     /**
      * 
      * @param {boolean} toHash 
-     * @returns {communicationData} transaction (keccak256 hashed or not)
+     * @returns {Buffer} transaction (keccak256 hashed or not)
      */
-    serialize(toHash: boolean = false): communicationData {
+    serialize(toHash: boolean = false): Buffer {
         const transaction = [
             ...this.prepare(),
             handleRLPValue(this.tx.chainId ?? 0x00),
@@ -155,44 +152,39 @@ class ETHTransactionBuilder {
 
         const encoded = rlp.encode(transaction);
 
-        const result = (toHash) ? Buffer.from(keccak256.update(encoded).digest()) : encoded;
-        return toCommunicationData(result);
+        return (toHash) ? Buffer.from(keccak256.update(encoded).digest()) : encoded;
     }
 
     /**
      * sign transaction
-     * @param {communicationData} sigData 
-     * @returns {communicationData} signed transaction
+     * @param {string} signature 
+     * @returns {Buffer} signed transaction
      */
-    withSignature(sigData: communicationData): communicationData {
-        if (!this.verify(sigData)) throw Error("invalid signature");
+    withSignature(sig: Buffer): Buffer {
+        if (!this.verify(sig)) throw Error("invalid signature");
 
-        sigData = getBuffer(this.getSignature(sigData));
+        sig = this.getSignature(sig);
         const transaction = [
             ...this.prepare(),
-            handleRLPValue(sigData.slice(64)),
-            trimZeroForRLP(sigData.slice(0, 32)),
-            trimZeroForRLP(sigData.slice(32, 64))
+            handleRLPValue(sig.slice(64)),
+            trimZeroForRLP(sig.slice(0, 32)),
+            trimZeroForRLP(sig.slice(32, 64))
         ];
 
-        const serialized = rlp.encode(transaction);
-        return toCommunicationData(serialized);
+        return rlp.encode(transaction);
     }
 
-    getSignature(sigData: communicationData): communicationData {
-        sigData = getBuffer(sigData);
+    getSignature(sig: Buffer): Buffer {
         const chainId = parseInt(Buffer.from(this.tx.chainId ?? [0]).toString("hex"), 16);
         const offset = (chainId > 0) ? chainId * 2 + 35 : 27;
-        let v_hex = (sigData[64] + offset).toString(16);
+        let v_hex = (sig[64] + offset).toString(16);
         if (v_hex.length % 2 !== 0) v_hex = `0${v_hex}`;
         const v = Buffer.from(v_hex, "hex");
 
-        const signature = Buffer.concat([
-            sigData.slice(0, 64),
+        return Buffer.concat([
+            sig.slice(0, 64),
             v
         ]);
-
-        return toCommunicationData(signature);
     }
 
     protected prepare() {
@@ -206,8 +198,7 @@ class ETHTransactionBuilder {
         ];
     }
 
-    protected verify(data: communicationData): boolean {
-        data = getBuffer(data);
+    protected verify(data: Buffer): boolean {
         const sig = data.slice(0, 64);
         try {
             secp256k1.ecdsaRecover(sig, data.readUint8(64), this.serialize(true));
@@ -224,14 +215,13 @@ class ETHTransactionBuilder {
         return parseInt(Buffer.from(this.tx.chainId).toString("hex"), 16);
     }
 
-    get tx() { return _ethTx.get(this); }
-    get txJSON() { return wrapResult(this.tx); }
+    get tx() { return __tx.get(this); }
 }
 
 class EIP1559Builder extends ETHTransactionBuilder {
     constructor(tx: any) {
         super(tx);
-        const _tx = _ethTx.get(this);
+        const _tx = __tx.get(this);
 
         // deal with compatibale fields
         const priorityFee = tx.maxPriorityFeePerGas || tx.priorityFee;
@@ -250,7 +240,7 @@ class EIP1559Builder extends ETHTransactionBuilder {
         }
     }
 
-    serialize(toHash: boolean = false): communicationData {
+    serialize(toHash: boolean = false): Buffer {
         const transaction = this.prepare();
 
         const encoded = Buffer.concat([
@@ -258,31 +248,28 @@ class EIP1559Builder extends ETHTransactionBuilder {
             rlp.encode(transaction)
         ]);
 
-        const result = (toHash) ? Buffer.from(keccak256.update(encoded).digest()) : encoded;
-        return toCommunicationData(result);
+        return (toHash) ? Buffer.from(keccak256.update(encoded).digest()) : encoded;
     }
 
-    withSignature(sigData: communicationData): communicationData {
-        if (!this.verify(sigData)) throw Error("invalid signature");
+    withSignature(sig: Buffer): Buffer {
+        if (!this.verify(sig)) throw Error("invalid signature");
 
-        sigData = getBuffer(sigData);
         const transaction = [
             ...this.prepare(),
-            handleRLPValue(sigData[64]),
-            trimZeroForRLP(sigData.slice(0, 32)),
-            trimZeroForRLP(sigData.slice(32, 64))
+            handleRLPValue(sig[64]),
+            trimZeroForRLP(sig.slice(0, 32)),
+            trimZeroForRLP(sig.slice(32, 64))
         ];
         const encoded = rlp.encode(transaction);
 
-        const serialized = Buffer.concat([
+        return Buffer.concat([
             EIP1559_TransactionType,
             encoded
         ]);
-        return toCommunicationData(serialized);
     }
 
-    getSignature(sigData: communicationData): communicationData {
-        return sigData;
+    getSignature(sig: Buffer): Buffer {
+        return sig;
     }
 
     protected prepare() {
