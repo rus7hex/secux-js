@@ -60,7 +60,7 @@ Object.defineProperty(global, "@secux/transport", {
 
 
 export { isSupportedCoin, toExtenededPublicKey, Signature } from "@secux/utility";
-export { to_L1_APDU } from "@secux/utility/lib/communication";
+export { communicationWrapper, to_L1_APDU } from "@secux/utility/lib/communication";
 export { ITransport } from "@secux/transport";
 export { SecuxTransactionTool } from "@secux/protocol-transaction";
 export { SecuxDevice, SecuxDeviceNifty } from "@secux/protocol-device";
